@@ -414,7 +414,7 @@ body {
     color: var(--fg-light);
     text-decoration: none;
     font-weight: var(--weightMedium);
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     background: none;
     border: none;
     cursor: pointer;

@@ -1,7 +1,7 @@
 import { createApp } from "vue";
 import { createRouter, createWebHashHistory } from "vue-router";
-import { GraffitiLocal } from "@graffiti-garden/implementation-local";
-// import { GraffitiDecentralized } from "@graffiti-garden/implementation-decentralized";
+// import { GraffitiLocal } from "@graffiti-garden/implementation-local";
+import { GraffitiDecentralized } from "@graffiti-garden/implementation-decentralized";
 import { GraffitiPlugin } from "@graffiti-garden/wrapper-vue";
 import {
   Plus,
@@ -32,8 +32,8 @@ const App = { template: "#app-template" };
 
 const app = createApp(App)
   .use(GraffitiPlugin, {
-    graffiti: new GraffitiLocal(),
-    // graffiti: new GraffitiDecentralized(),
+    // graffiti: new GraffitiLocal(),
+    graffiti: new GraffitiDecentralized(),
   })
   .use(router);
 

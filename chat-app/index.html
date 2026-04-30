@@ -30,15 +30,15 @@
                     <router-view></router-view>
                     <nav v-if="$route.name !== 'chat'" class="app-nav">
                         <router-link to="/home" class="nav-link">
-                            <message-circle :size="20"></message-circle>
+                            <message-circle :size="24"></message-circle>
                             <span>Chats</span>
                         </router-link>
                         <router-link to="/profile" class="nav-link">
-                            <user :size="20"></user>
+                            <user :size="24"></user>
                             <span>Profile</span>
                         </router-link>
                         <button @click="$graffiti.logout($graffitiSession.value)" class="nav-link logout-link">
-                            <log-out :size="20"></log-out>
+                            <log-out :size="24"></log-out>
                             <span>Log Out</span>
                         </button>
                     </nav>
