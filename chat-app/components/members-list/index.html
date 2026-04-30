@@ -1,0 +1,41 @@
+<div class="members-overlay" @click.self="$emit('close')">
+    <div class="members-panel">
+        <header class="members-header">
+            <button @click="$emit('close')" class="back-btn" aria-label="Close">
+                <ArrowLeft :size="22" />
+            </button>
+            <h2>Members</h2>
+        </header>
+
+        <div class="members-grid">
+            <div v-for="member in members" :key="member.actor" class="member-tile">
+                <div class="member-avatar">{{ getInitial(member) }}</div>
+                <div class="member-name">{{ member.displayName || member.handle || '...' }}</div>
+            </div>
+
+            <button class="member-tile add-member-tile" @click="showInviteForm = !showInviteForm" aria-label="Invite member">
+                <div class="member-avatar add-avatar">
+                    <Plus :size="28" />
+                </div>
+                <div class="member-name">Invite</div>
+            </button>
+        </div>
+
+        <form v-if="showInviteForm" @submit.prevent="inviteMember()" class="invite-form">
+            <label class="invite-label">Graffiti handle</label>
+            <div class="invite-row">
+                <input
+                    type="text"
+                    v-model="inviteHandle"
+                    placeholder="e.g. john"
+                    class="chat-title-input"
+                    :disabled="isInviting"
+                />
+                <button type="submit" :disabled="isInviting || !inviteHandle.trim()" class="create-btn invite-btn">
+                    {{ isInviting ? 'Adding...' : 'Add' }}
+                </button>
+            </div>
+            <p v-if="inviteError" class="invite-error">{{ inviteError }}</p>
+        </form>
+    </div>
+</div>

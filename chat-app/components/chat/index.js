@@ -1,4 +1,4 @@
-import { ref, computed, toRef } from "vue";
+import { ref, computed, toRef, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -10,9 +10,10 @@ import { componentFromFolder } from "../component-loader.js";
 const TEMP_SHARED_CHANNEL = "designftw-26";
 
 const ChatMessage = componentFromFolder("../chat-message", import.meta.url);
+const MembersList = componentFromFolder("../members-list", import.meta.url);
 
 export default {
-  components: { ChatMessage },
+  components: { ChatMessage, MembersList },
   props: {
     chatId: { type: String, required: true },
   },
@@ -23,8 +24,15 @@ export default {
 
     const myMessage = ref("");
     const isSendingMessage = ref(false);
+    const showMembersList = ref(false);
 
     const chatIdRef = toRef(props, "chatId");
+
+    // Get chat data from router state if available (for immediate display)
+    const initialChatData = router.currentRoute.value.state?.chat || null;
+    const chatTitleRef = ref(initialChatData?.title || "");
+    // Header is loaded immediately if we have initial data, otherwise wait for discovery
+    const isChatLoaded = ref(!!initialChatData);
 
     // Discover messages in this chat's channel.
     const { objects: messageObjects, isFirstPoll: areMessagesLoading } =
@@ -101,9 +109,11 @@ export default {
       }),
     );
 
-    // Discover chat metadata to show its title.
+    // Discover chat metadata only if we don't have initial data (for direct navigation/refresh)
+    const shouldDiscoverChat = computed(() => !initialChatData);
+    
     const { objects: chatMetaObjects } = useGraffitiDiscover(
-      [TEMP_SHARED_CHANNEL],
+      computed(() => shouldDiscoverChat.value ? [TEMP_SHARED_CHANNEL] : []),
       {
         properties: {
           value: {
@@ -119,12 +129,20 @@ export default {
       },
     );
 
-    const chatTitle = computed(() => {
+    // Update chat title from discovery only if needed (direct navigation without router state)
+    watchEffect(() => {
+      if (!shouldDiscoverChat.value) return;
+      
       const match = chatMetaObjects.value.find(
         (c) => c.value.channel === chatIdRef.value,
       );
-      return match?.value.title ?? "";
+      if (match?.value.title) {
+        chatTitleRef.value = match.value.title;
+        isChatLoaded.value = true;
+      }
     });
+
+    const chatTitle = computed(() => chatTitleRef.value);
 
     async function sendMessage() {
       if (!myMessage.value.trim() || !chatIdRef.value) return;
@@ -161,9 +179,12 @@ export default {
     return {
       myMessage,
       isSendingMessage,
+      showMembersList,
       areMessagesLoading,
       enrichedMessages,
       chatTitle,
+      isChatLoaded,
+      chatId: chatIdRef,
       sendMessage,
       back,
       getInitials,

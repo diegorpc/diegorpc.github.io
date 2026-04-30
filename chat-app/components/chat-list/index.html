@@ -24,7 +24,9 @@
     </div>
 
     <div class="chat-list-container">
-        <p v-if="areChatsLoading" class="loading-text">Loading chats...</p>
+        <div v-if="isLoading" class="loading-spinner-container">
+            <div class="loading-spinner"></div>
+        </div>
         <div v-else-if="sortedChats.length === 0" class="empty-state">
             <p>No chats yet. Create one to get started!</p>
         </div>
@@ -33,10 +35,17 @@
                 <div class="chat-avatar">{{ getInitials(chat.value.title) }}</div>
                 <div class="chat-info">
                     <div class="chat-name">{{ chat.value.title }}</div>
-                    <div v-if="showMessagePreview" class="chat-preview">Tap to open</div>
+                    <div v-if="!showMessagePreview || !getLatestMessageInfo(chat)" class="chat-preview">Tap to open</div>
+                    <div v-else class="chat-preview">
+                        <strong>{{ getLatestMessageInfo(chat).senderName }}:</strong> {{ getLatestMessageInfo(chat).message.value.content }}
+                    </div>
                 </div>
                 <div class="chat-meta">
-                    <div class="chat-time">{{ formatTime(chat.value.published) }}</div>
+                    <div class="chat-time">
+                        {{ getLatestMessageInfo(chat) 
+                            ? formatTimeSince(getLatestMessageInfo(chat).message.value.published)
+                            : formatTimeSince(chat.value.published) }}
+                    </div>
                 </div>
             </li>
         </ul>

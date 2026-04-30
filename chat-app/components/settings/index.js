@@ -1,4 +1,4 @@
-import { ref, watch } from "vue";
+import { ref, watchEffect, nextTick } from "vue";
 import {
   useGraffiti,
   useGraffitiSession,
@@ -11,10 +11,10 @@ export default {
     const session = useGraffitiSession();
 
     const showMessagePreview = ref(true);
-    const hasHydrated = ref(false);
+    const isHydrated = ref(false);
 
     // Discover user settings from their profile channel
-    const { objects: settingsObjects } = useGraffitiDiscover(
+    const { objects: settingsObjects, isFirstPoll } = useGraffitiDiscover(
       () => (session.value?.actor ? [`${session.value.actor}/settings`] : []),
       {
         properties: {
@@ -29,21 +29,24 @@ export default {
       },
     );
 
-    // Hydrate settings from latest object
-    watch(
-      settingsObjects,
-      (objects) => {
-        if (hasHydrated.value || !objects.length) return;
-        const latest = objects
-          .filter((o) => o.actor === session.value?.actor)
-          .toSorted((a, b) => b.value.published - a.value.published)[0];
-        if (latest) {
-          showMessagePreview.value = latest.value.showMessagePreview ?? true;
-          hasHydrated.value = true;
-        }
-      },
-      { immediate: true },
-    );
+    // Sync settings from Graffiti
+    watchEffect(() => {
+      if (!session.value?.actor) return;
+      const latest = settingsObjects.value
+        .filter((o) => o.actor === session.value.actor)
+        .toSorted((a, b) => b.value.published - a.value.published)[0];
+      if (latest) {
+        showMessagePreview.value = latest.value.showMessagePreview ?? true;
+      }
+      // Mark hydrated AFTER value applies + DOM paints (prevents toggle animation flash)
+      if (!isFirstPoll.value && !isHydrated.value) {
+        nextTick(() => {
+          requestAnimationFrame(() => {
+            isHydrated.value = true;
+          });
+        });
+      }
+    });
 
     async function saveSetting(key, value) {
       if (!session.value?.actor) return;
@@ -73,6 +76,7 @@ export default {
 
     return {
       showMessagePreview,
+      isHydrated,
       saveSetting,
     };
   },

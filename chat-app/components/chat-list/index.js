@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref, computed, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -39,15 +39,15 @@ export default {
       },
     );
 
-    // Sync settings
-    computed(() => {
+    // Sync settings from Graffiti
+    watchEffect(() => {
+      if (!session.value?.actor) return;
       const latest = settingsObjects.value
         .filter((o) => o.actor === session.value?.actor)
         .toSorted((a, b) => b.value.published - a.value.published)[0];
       if (latest) {
         showMessagePreview.value = latest.value.showMessagePreview ?? true;
       }
-      return null;
     });
 
     // discover chat objects
@@ -73,13 +73,111 @@ export default {
         true,
       );
 
-    const sortedChats = computed(() =>
-      chatObjects.value.toSorted(
-        (a, b) => b.value.published - a.value.published,
-      ),
+    // Discover messages for all chats
+    const chatChannels = computed(() =>
+      chatObjects.value.map((c) => c.value.channel),
     );
 
-    // ACTION 1: Create Chat
+    const { objects: allMessageObjects, isFirstPoll: areMessagesLoading } = useGraffitiDiscover(
+      chatChannels,
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "content", "published"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Message" },
+              content: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
+      undefined,
+      true,
+    );
+
+    // Combined loading state - wait for both chats and messages
+    const isLoading = computed(() => areChatsLoading.value || areMessagesLoading.value);
+
+    // Get unique actors from all messages to fetch their profiles
+    const uniqueActors = computed(() => [
+      ...new Set(allMessageObjects.value.map((m) => m.actor)),
+    ]);
+
+    const { objects: profileObjects } = useGraffitiDiscover(
+      computed(() => uniqueActors.value.map((a) => `${a}/profile`)),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type"],
+            properties: {
+              activity: { const: "Update" },
+              type: { const: "Profile" },
+            },
+          },
+        },
+      },
+    );
+
+    // Resolve handles for actors
+    const actorHandles = ref({});
+    async function resolveHandle(actor) {
+      if (actorHandles.value[actor] !== undefined) return;
+      actorHandles.value[actor] = null;
+      try {
+        const handle = await graffiti.actorToHandle(actor);
+        actorHandles.value[actor] = handle;
+      } catch {
+        actorHandles.value[actor] = null;
+      }
+    }
+
+    // Map actor to display name
+    const actorDisplayNames = computed(() => {
+      const map = new Map();
+      for (const actor of uniqueActors.value) {
+        const profile = profileObjects.value
+          .filter((p) => p.actor === actor)
+          .toSorted((a, b) => b.value.published - a.value.published)[0];
+        const displayName = profile?.value.displayName || null;
+        if (!displayName) resolveHandle(actor);
+        map.set(
+          actor,
+          displayName || actorHandles.value[actor] || actor.split(".")[0],
+        );
+      }
+      return map;
+    });
+
+    // Compute latest message per chat
+    const chatLatestMessages = computed(() => {
+      const map = new Map();
+      for (const chat of chatObjects.value) {
+        const chatMessages = allMessageObjects.value
+          .filter((m) => m.channels.includes(chat.value.channel))
+          .toSorted((a, b) => b.value.published - a.value.published);
+        if (chatMessages.length > 0) {
+          const latest = chatMessages[0];
+          map.set(chat.value.channel, {
+            message: latest,
+            senderName: actorDisplayNames.value.get(latest.actor) || "Unknown",
+          });
+        }
+      }
+      return map;
+    });
+
+    const sortedChats = computed(() =>
+      chatObjects.value.toSorted((a, b) => {
+        const aLatest = chatLatestMessages.value.get(a.value.channel);
+        const bLatest = chatLatestMessages.value.get(b.value.channel);
+        const aTime = aLatest?.message.value.published || a.value.published;
+        const bTime = bLatest?.message.value.published || b.value.published;
+        return bTime - aTime;
+      }),
+    );
+
     async function createChat() {
       if (!newChatTitle.value.trim()) return;
 
@@ -100,6 +198,21 @@ export default {
           },
           session.value,
         );
+
+        // Auto-add creator as first member
+        await graffiti.post(
+          {
+            value: {
+              activity: "Add",
+              type: "Member",
+              member: session.value.actor,
+              published: Date.now(),
+            },
+            channels: [`${chatChannel}/members`],
+          },
+          session.value,
+        );
+
         newChatTitle.value = "";
         showNewChatForm.value = false;
       } finally {
@@ -107,11 +220,11 @@ export default {
       }
     }
 
-    // ACTION 3: Join/Open Chat
     function openChat(chat) {
       router.push({
         name: "chat",
         params: { chatId: chat.value.channel },
+        state: { chat: chat.value },
       });
     }
 
@@ -123,6 +236,24 @@ export default {
       });
     }
 
+    function formatTimeSince(timestamp) {
+      const now = Date.now();
+      const diff = now - timestamp;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) return `${days}d`;
+      if (hours > 0) return `${hours}h`;
+      if (minutes > 0) return `${minutes}m`;
+      return "now";
+    }
+
+    function getLatestMessageInfo(chat) {
+      return chatLatestMessages.value.get(chat.value.channel);
+    }
+
     function getInitials(title) {
       return (title || "?").substring(0, 2).toUpperCase();
     }
@@ -131,13 +262,15 @@ export default {
       newChatTitle,
       isCreatingChat,
       showNewChatForm,
-      areChatsLoading,
+      isLoading,
       sortedChats,
       showMessagePreview,
       createChat,
       openChat,
       formatTime,
+      formatTimeSince,
       getInitials,
+      getLatestMessageInfo,
     };
   },
 };

@@ -3,12 +3,28 @@
         <button @click="back()" class="back-btn" aria-label="Back">
             <ArrowLeft :size="22" />
         </button>
-        <div class="chat-avatar small">{{ getInitials(chatTitle) }}</div>
-        <h2>{{ chatTitle || 'Chat' }}</h2>
+        <template v-if="isChatLoaded">
+            <div class="chat-avatar small">{{ getInitials(chatTitle) }}</div>
+            <h2>{{ chatTitle }}</h2>
+            <button @click="showMembersList = true" class="members-btn" aria-label="Members">
+                <Users :size="22" />
+            </button>
+        </template>
+        <div v-else class="chat-header-loading">
+            <div class="loading-spinner small"></div>
+        </div>
     </header>
 
+    <members-list
+        v-if="showMembersList"
+        :chat-id="chatId"
+        @close="showMembersList = false"
+    ></members-list>
+
     <div class="messages-container">
-        <p v-if="areMessagesLoading" class="loading-text">Loading messages...</p>
+        <div v-if="areMessagesLoading" class="loading-spinner-container">
+            <div class="loading-spinner"></div>
+        </div>
         <div v-else-if="enrichedMessages.length === 0" class="empty-messages">
             <p>No messages yet. Start the conversation!</p>
         </div>
