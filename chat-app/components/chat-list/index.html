@@ -1,0 +1,44 @@
+<div class="chat-list-view">
+    <header class="app-header">
+        <h1>Your Chats</h1>
+        <button @click="showNewChatForm = !showNewChatForm" class="new-chat-btn" aria-label="New chat">
+            <Plus :size="22" />
+        </button>
+    </header>
+
+    <div v-if="showNewChatForm" class="new-chat-form">
+        <form @submit.prevent="createChat()">
+            <input
+                type="text"
+                v-model="newChatTitle"
+                placeholder="Enter chat name..."
+                class="chat-title-input"
+            />
+            <div class="form-actions">
+                <button type="submit" :disabled="!newChatTitle || isCreatingChat" class="create-btn">
+                    {{ isCreatingChat ? 'Creating...' : 'Create' }}
+                </button>
+                <button type="button" @click="showNewChatForm = false" class="cancel-btn">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="chat-list-container">
+        <p v-if="areChatsLoading" class="loading-text">Loading chats...</p>
+        <div v-else-if="sortedChats.length === 0" class="empty-state">
+            <p>No chats yet. Create one to get started!</p>
+        </div>
+        <ul v-else class="chat-list">
+            <li v-for="chat in sortedChats" :key="chat.url" @click="openChat(chat)" class="chat-item">
+                <div class="chat-avatar">{{ getInitials(chat.value.title) }}</div>
+                <div class="chat-info">
+                    <div class="chat-name">{{ chat.value.title }}</div>
+                    <div class="chat-preview">Tap to open</div>
+                </div>
+                <div class="chat-meta">
+                    <div class="chat-time">{{ formatTime(chat.value.published) }}</div>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>

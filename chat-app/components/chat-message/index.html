@@ -1,0 +1,20 @@
+<div :class="['message', isOwnMessage ? 'own-message' : 'other-message']">
+    <div v-if="!isOwnMessage" class="message-sender">
+        <graffiti-actor-to-handle :actor="message.actor"></graffiti-actor-to-handle>
+    </div>
+    <div class="message-bubble">
+        <div class="message-content">{{ message.value.content }}</div>
+        <div class="message-footer">
+            <span class="message-time">{{ formatTime(message.value.published) }}</span>
+            <button
+                v-if="isOwnMessage"
+                @click="deleteMessage()"
+                :disabled="isDeleting"
+                class="delete-btn"
+                aria-label="Delete message"
+            >
+                <Trash2 :size="14" />
+            </button>
+        </div>
+    </div>
+</div>

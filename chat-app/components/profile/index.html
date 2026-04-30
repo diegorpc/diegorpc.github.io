@@ -1,0 +1,47 @@
+<div class="profile-view">
+    <header class="app-header">
+        <h1>Profile</h1>
+    </header>
+
+    <div class="profile-container">
+        <div class="profile-field">
+            <label class="profile-label">Graffiti Actor</label>
+            <div class="profile-actor">{{ $graffitiSession.value?.actor }}</div>
+            <div class="profile-handle">
+                <graffiti-actor-to-handle :actor="$graffitiSession.value?.actor"></graffiti-actor-to-handle>
+            </div>
+        </div>
+
+        <form @submit.prevent="saveProfile()" class="profile-form">
+            <div class="profile-field">
+                <label class="profile-label" for="display-name">Display Name</label>
+                <input
+                    id="display-name"
+                    type="text"
+                    v-model="displayName"
+                    placeholder="Your display name"
+                    class="chat-title-input"
+                />
+            </div>
+
+            <div class="profile-field">
+                <label class="profile-label" for="bio">Bio</label>
+                <textarea
+                    id="bio"
+                    v-model="bio"
+                    placeholder="Tell others about yourself..."
+                    class="chat-title-input"
+                    rows="4"
+                ></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" :disabled="isSavingProfile" class="create-btn">
+                    {{ isSavingProfile ? 'Saving...' : 'Save Profile' }}
+                </button>
+            </div>
+        </form>
+
+        <p v-if="isLoadingProfile" class="loading-text">Loading profile...</p>
+    </div>
+</div>
