@@ -37,10 +37,10 @@
                             <user :size="24"></user>
                             <span>Profile</span>
                         </router-link>
-                        <button @click="$graffiti.logout($graffitiSession.value)" class="nav-link logout-link">
-                            <log-out :size="24"></log-out>
-                            <span>Log Out</span>
-                        </button>
+                        <router-link to="/settings" class="nav-link">
+                            <settings-icon :size="24"></settings-icon>
+                            <span>Settings</span>
+                        </router-link>
                     </nav>
                 </template>
             </div>

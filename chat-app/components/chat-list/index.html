@@ -33,7 +33,7 @@
                 <div class="chat-avatar">{{ getInitials(chat.value.title) }}</div>
                 <div class="chat-info">
                     <div class="chat-name">{{ chat.value.title }}</div>
-                    <div class="chat-preview">Tap to open</div>
+                    <div v-if="showMessagePreview" class="chat-preview">Tap to open</div>
                 </div>
                 <div class="chat-meta">
                     <div class="chat-time">{{ formatTime(chat.value.published) }}</div>

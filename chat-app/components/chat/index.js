@@ -53,6 +53,54 @@ export default {
       ),
     );
 
+    // Get unique actors from messages to fetch their profiles
+    const uniqueActors = computed(() => [
+      ...new Set(sortedMessages.value.map((m) => m.actor)),
+    ]);
+
+    // Discover profiles for all actors in this chat
+    const { objects: profileObjects } = useGraffitiDiscover(
+      computed(() =>
+        uniqueActors.value.map((actor) => `${actor}/profile`),
+      ),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type"],
+            properties: {
+              activity: { const: "Update" },
+              type: { const: "Profile" },
+              displayName: { type: "string" },
+            },
+          },
+        },
+      },
+    );
+
+    // Map actor to display name
+    const actorDisplayNames = computed(() => {
+      const map = new Map();
+      for (const profile of profileObjects.value) {
+        const latest = profileObjects.value
+          .filter((p) => p.actor === profile.actor)
+          .toSorted((a, b) => b.value.published - a.value.published)[0];
+        if (latest && latest.value.displayName) {
+          map.set(latest.actor, latest.value.displayName);
+        }
+      }
+      return map;
+    });
+
+    // Enrich messages with block start indicator
+    const enrichedMessages = computed(() =>
+      sortedMessages.value.map((msg, index) => {
+        const prevMsg = index > 0 ? sortedMessages.value[index - 1] : null;
+        const isBlockStart = !prevMsg || prevMsg.actor !== msg.actor;
+        const displayName = actorDisplayNames.value.get(msg.actor) || null;
+        return { message: msg, isBlockStart, displayName };
+      }),
+    );
+
     // Discover chat metadata to show its title.
     const { objects: chatMetaObjects } = useGraffitiDiscover(
       [TEMP_SHARED_CHANNEL],
@@ -114,7 +162,7 @@ export default {
       myMessage,
       isSendingMessage,
       areMessagesLoading,
-      sortedMessages,
+      enrichedMessages,
       chatTitle,
       sendMessage,
       back,

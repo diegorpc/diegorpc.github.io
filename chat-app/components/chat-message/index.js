@@ -7,6 +7,8 @@ import {
 export default {
   props: {
     message: { type: Object, required: true },
+    isBlockStart: { type: Boolean, default: false },
+    displayName: { type: String, default: null },
   },
   setup(props) {
     const graffiti = useGraffiti();

@@ -11,12 +11,14 @@ import {
   MessageCircle,
   User,
   LogOut,
+  Settings as SettingsIcon,
 } from "lucide-vue-next";
 import { componentFromFolder } from "./components/component-loader.js";
 
 const ChatList = componentFromFolder("./components/chat-list", import.meta.url);
 const Chat = componentFromFolder("./components/chat", import.meta.url);
 const Profile = componentFromFolder("./components/profile", import.meta.url);
+const Settings = componentFromFolder("./components/settings", import.meta.url);
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -25,6 +27,7 @@ const router = createRouter({
     { path: "/home", name: "home", component: ChatList },
     { path: "/chat/:chatId", name: "chat", component: Chat, props: true },
     { path: "/profile", name: "profile", component: Profile },
+    { path: "/settings", name: "settings", component: Settings },
   ],
 });
 
@@ -38,7 +41,7 @@ const app = createApp(App)
   .use(router);
 
 // Register Lucide icons globally so any template can use them.
-const icons = { Plus, ArrowLeft, Send, Trash2, MessageCircle, User, LogOut };
+const icons = { Plus, ArrowLeft, Send, Trash2, MessageCircle, User, LogOut, SettingsIcon };
 for (const [name, component] of Object.entries(icons)) {
   app.component(name, component);
 }

@@ -90,12 +90,19 @@ export default {
       }
     }
 
+    function logout() {
+      if (session.value) {
+        graffiti.logout(session.value);
+      }
+    }
+
     return {
       displayName,
       bio,
       isSavingProfile,
       isLoadingProfile,
       saveProfile,
+      logout,
     };
   },
 };

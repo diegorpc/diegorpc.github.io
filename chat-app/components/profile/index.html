@@ -43,5 +43,12 @@
         </form>
 
         <p v-if="isLoadingProfile" class="loading-text">Loading profile...</p>
+
+        <div class="profile-actions">
+            <button @click="logout()" class="logout-btn">
+                <LogOut :size="18" />
+                <span>Log Out</span>
+            </button>
+        </div>
     </div>
 </div>

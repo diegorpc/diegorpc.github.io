@@ -22,6 +22,34 @@ export default {
     const isCreatingChat = ref(false);
     const showNewChatForm = ref(false);
 
+    // Fetch user settings to control message preview display
+    const showMessagePreview = ref(true);
+    const { objects: settingsObjects } = useGraffitiDiscover(
+      () => (session.value?.actor ? [`${session.value.actor}/settings`] : []),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type"],
+            properties: {
+              activity: { const: "Update" },
+              type: { const: "Settings" },
+            },
+          },
+        },
+      },
+    );
+
+    // Sync settings
+    computed(() => {
+      const latest = settingsObjects.value
+        .filter((o) => o.actor === session.value?.actor)
+        .toSorted((a, b) => b.value.published - a.value.published)[0];
+      if (latest) {
+        showMessagePreview.value = latest.value.showMessagePreview ?? true;
+      }
+      return null;
+    });
+
     // discover chat objects
     // TODO: replace with user's personal channels once member invitations are implemented
     const { objects: chatObjects, isFirstPoll: areChatsLoading } =
@@ -105,6 +133,7 @@ export default {
       showNewChatForm,
       areChatsLoading,
       sortedChats,
+      showMessagePreview,
       createChat,
       openChat,
       formatTime,

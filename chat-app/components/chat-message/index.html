@@ -1,6 +1,9 @@
-<div :class="['message', isOwnMessage ? 'own-message' : 'other-message']">
-    <div v-if="!isOwnMessage" class="message-sender">
-        <graffiti-actor-to-handle :actor="message.actor"></graffiti-actor-to-handle>
+<div :class="['message', isOwnMessage ? 'own-message' : 'other-message', { 'message-block-start': isBlockStart, 'message-block-continue': !isBlockStart }]">
+    <div v-if="!isOwnMessage && isBlockStart" class="message-sender">
+        <span v-if="displayName" class="display-name">{{ displayName }}</span>
+        <span v-else class="actor-handle">
+            <graffiti-actor-to-handle :actor="message.actor"></graffiti-actor-to-handle>
+        </span>
     </div>
     <div class="message-bubble">
         <div class="message-content">{{ message.value.content }}</div>

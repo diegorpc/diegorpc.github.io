@@ -1,0 +1,18 @@
+<div class="settings-view">
+    <header class="app-header">
+        <h1>Settings</h1>
+    </header>
+
+    <div class="settings-container">
+        <div class="setting-item">
+            <div class="setting-info">
+                <div class="setting-label">Show message preview</div>
+                <div class="setting-description">Display message previews in chat list</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" v-model="showMessagePreview" @change="saveSetting('showMessagePreview', showMessagePreview)" />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+</div>

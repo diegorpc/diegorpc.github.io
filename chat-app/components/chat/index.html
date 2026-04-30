@@ -9,14 +9,16 @@
 
     <div class="messages-container">
         <p v-if="areMessagesLoading" class="loading-text">Loading messages...</p>
-        <div v-else-if="sortedMessages.length === 0" class="empty-messages">
+        <div v-else-if="enrichedMessages.length === 0" class="empty-messages">
             <p>No messages yet. Start the conversation!</p>
         </div>
         <div v-else class="messages-list">
             <chat-message
-                v-for="message in sortedMessages"
-                :key="message.url"
-                :message="message"
+                v-for="item in enrichedMessages"
+                :key="item.message.url"
+                :message="item.message"
+                :is-block-start="item.isBlockStart"
+                :display-name="item.displayName"
             ></chat-message>
         </div>
     </div>
