@@ -28,7 +28,7 @@
                 </button>
                 <template v-else>
                     <router-view></router-view>
-                    <nav v-if="$route.name !== 'chat'" class="app-nav">
+                    <nav v-if="$route.name !== 'chat' && $route.name !== 'page'" class="app-nav">
                         <router-link to="/home" class="nav-link">
                             <message-circle :size="24"></message-circle>
                             <span>Chats</span>

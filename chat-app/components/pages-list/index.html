@@ -1,0 +1,105 @@
+<div class="pages-overlay" @click.self="close()">
+    <div class="pages-panel">
+        <header class="pages-header">
+            <button @click="close()" class="back-btn" aria-label="Close">
+                <ArrowLeft :size="22" />
+            </button>
+            <h2>Pages</h2>
+        </header>
+
+        <div v-if="!showCreateForm" class="pages-search-row">
+            <div class="pages-search">
+                <input
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="Search pages..."
+                    class="pages-search-input"
+                />
+            </div>
+            <button class="new-chat-btn" @click="openCreateForm()" aria-label="New page">
+                <Plus :size="22" />
+            </button>
+        </div>
+
+        <form v-else @submit.prevent="createPage()" class="new-page-form">
+            <label class="invite-label">Page name</label>
+            <input
+                type="text"
+                v-model="newPageTitle"
+                placeholder="e.g. Game Night"
+                class="chat-title-input"
+            />
+
+            <label class="invite-label">Members</label>
+            <div class="page-members-select">
+                <button
+                    v-for="member in parentChatMembers"
+                    :key="member.actor"
+                    type="button"
+                    :class="['page-member-option', { selected: selectedMembers.has(member.actor) }]"
+                    @click="toggleMember(member.actor)"
+                >
+                    <div class="page-member-avatar">{{ member.initial }}</div>
+                    <div class="page-member-name">{{ member.displayName || '...' }}</div>
+                </button>
+            </div>
+
+            <div class="form-actions">
+                <button
+                    type="submit"
+                    :disabled="!newPageTitle.trim() || selectedMembers.size === 0 || isCreatingPage"
+                    class="create-btn"
+                >
+                    {{ isCreatingPage ? 'Creating...' : 'Create' }}
+                </button>
+                <button type="button" @click="cancelCreate()" class="cancel-btn">Cancel</button>
+            </div>
+        </form>
+
+        <div v-if="!showCreateForm" class="pages-container">
+            <div v-if="arePagesLoading" class="loading-spinner-container">
+                <div class="loading-spinner"></div>
+            </div>
+            <div v-else-if="filteredPages.length === 0" class="empty-state">
+                <p v-if="searchQuery">No pages match your search.</p>
+                <p v-else>No pages yet. Create one to subdivide your chat.</p>
+            </div>
+            <ul v-else class="pages-list">
+                <li
+                    v-for="page in filteredPages"
+                    :key="page.url"
+                    @click="openPage(page)"
+                    class="page-item"
+                >
+                    <div class="page-members-stack">
+                        <template v-for="(m, i) in getPageMembers(page).slice(0, 6)" :key="m.actor">
+                            <div
+                                v-if="i < 5 || getPageMembers(page).length <= 6"
+                                class="page-member-chip"
+                            >{{ m.initial }}</div>
+                        </template>
+                        <div
+                            v-if="getPageMembers(page).length > 6"
+                            class="page-member-chip page-member-more"
+                        >+{{ getPageMembers(page).length - 5 }}</div>
+                    </div>
+                    <div class="page-info">
+                        <div class="page-name">{{ page.value.title }}</div>
+                        <div class="page-preview">
+                            <template v-if="getLatestMessageInfo(page)">
+                                <strong>{{ getLatestMessageInfo(page).senderName }}:</strong>
+                                {{ getLatestMessageInfo(page).message.value.content }}
+                            </template>
+                            <template v-else>Tap to open</template>
+                        </div>
+                    </div>
+                    <div class="page-time">
+                        {{ getLatestMessageInfo(page)
+                            ? formatTimeSince(getLatestMessageInfo(page).message.value.published)
+                            : formatTimeSince(page.value.published) }}
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

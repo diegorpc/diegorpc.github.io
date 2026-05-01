@@ -7,16 +7,14 @@ import {
 } from "@graffiti-garden/wrapper-vue";
 import { componentFromFolder } from "../component-loader.js";
 
-const TEMP_SHARED_CHANNEL = "designftw-26";
-
 const ChatMessage = componentFromFolder("../chat-message", import.meta.url);
 const MembersList = componentFromFolder("../members-list", import.meta.url);
-const PagesList = componentFromFolder("../pages-list", import.meta.url);
 
 export default {
-  components: { ChatMessage, MembersList, PagesList },
+  components: { ChatMessage, MembersList },
   props: {
     chatId: { type: String, required: true },
+    pageId: { type: String, required: true },
   },
   setup(props) {
     const graffiti = useGraffiti();
@@ -26,20 +24,23 @@ export default {
     const myMessage = ref("");
     const isSendingMessage = ref(false);
     const showMembersList = ref(false);
-    const showPagesList = ref(false);
 
     const chatIdRef = toRef(props, "chatId");
+    const pageIdRef = toRef(props, "pageId");
 
-    // Get chat data from router state if available (for immediate display)
-    const initialChatData = router.currentRoute.value.state?.chat || null;
-    const chatTitleRef = ref(initialChatData?.title || "");
-    // Header is loaded immediately if we have initial data, otherwise wait for discovery
-    const isChatLoaded = ref(!!initialChatData);
+    // Get page data from router state for immediate display
+    const routeState = router.currentRoute.value.state || {};
+    const initialPage = routeState.page || null;
+    const initialParentTitle = routeState.parentChatTitle || "";
 
-    // Discover messages in this chat's channel.
+    const pageTitleRef = ref(initialPage?.title || "");
+    const parentChatTitleRef = ref(initialParentTitle);
+    const isPageLoaded = ref(!!initialPage);
+
+    // Discover messages in the page's channel
     const { objects: messageObjects, isFirstPoll: areMessagesLoading } =
       useGraffitiDiscover(
-        computed(() => [chatIdRef.value]),
+        computed(() => [pageIdRef.value]),
         {
           properties: {
             value: {
@@ -63,16 +64,12 @@ export default {
       ),
     );
 
-    // Get unique actors from messages to fetch their profiles
     const uniqueActors = computed(() => [
       ...new Set(sortedMessages.value.map((m) => m.actor)),
     ]);
 
-    // Discover profiles for all actors in this chat
     const { objects: profileObjects } = useGraffitiDiscover(
-      computed(() =>
-        uniqueActors.value.map((actor) => `${actor}/profile`),
-      ),
+      computed(() => uniqueActors.value.map((a) => `${a}/profile`)),
       {
         properties: {
           value: {
@@ -87,7 +84,6 @@ export default {
       },
     );
 
-    // Map actor to display name
     const actorDisplayNames = computed(() => {
       const map = new Map();
       for (const profile of profileObjects.value) {
@@ -101,7 +97,6 @@ export default {
       return map;
     });
 
-    // Enrich messages with block start indicator
     const enrichedMessages = computed(() =>
       sortedMessages.value.map((msg, index) => {
         const prevMsg = index > 0 ? sortedMessages.value[index - 1] : null;
@@ -111,14 +106,53 @@ export default {
       }),
     );
 
-    // Discover chat metadata only if we don't have initial data (for direct navigation/refresh)
-    const shouldDiscoverChat = computed(() => !initialChatData);
-    
+    // Fallback discovery for page metadata (on direct navigation/refresh)
+    const shouldDiscoverPage = computed(() => !initialPage);
+
+    const { objects: pageMetaObjects } = useGraffitiDiscover(
+      computed(() =>
+        shouldDiscoverPage.value && session.value?.actor
+          ? [`${session.value.actor}/page-inbox`]
+          : [],
+      ),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "title", "channel", "parentChatId"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Page" },
+              title: { type: "string" },
+              channel: { type: "string" },
+              parentChatId: { type: "string" },
+            },
+          },
+        },
+      },
+    );
+
+    watchEffect(() => {
+      if (!shouldDiscoverPage.value) return;
+      const match = pageMetaObjects.value.find(
+        (p) => p.value.channel === pageIdRef.value,
+      );
+      if (match?.value.title) {
+        pageTitleRef.value = match.value.title;
+        isPageLoaded.value = true;
+      }
+    });
+
+    // Fallback discovery for parent chat title
+    const shouldDiscoverChat = computed(() => !parentChatTitleRef.value);
+
     const { objects: chatMetaObjects } = useGraffitiDiscover(
-      computed(() => 
+      computed(() =>
         shouldDiscoverChat.value && session.value?.actor
-          ? [`${session.value.actor}/chats`, `${session.value.actor}/inbox`]
-          : []
+          ? [
+              `${session.value.actor}/chats`,
+              `${session.value.actor}/inbox`,
+            ]
+          : [],
       ),
       {
         properties: {
@@ -135,23 +169,21 @@ export default {
       },
     );
 
-    // Update chat title from discovery only if needed (direct navigation without router state)
     watchEffect(() => {
       if (!shouldDiscoverChat.value) return;
-      
       const match = chatMetaObjects.value.find(
         (c) => c.value.channel === chatIdRef.value,
       );
       if (match?.value.title) {
-        chatTitleRef.value = match.value.title;
-        isChatLoaded.value = true;
+        parentChatTitleRef.value = match.value.title;
       }
     });
 
-    const chatTitle = computed(() => chatTitleRef.value);
+    const pageTitle = computed(() => pageTitleRef.value);
+    const parentChatTitle = computed(() => parentChatTitleRef.value);
 
     async function sendMessage() {
-      if (!myMessage.value.trim() || !chatIdRef.value) return;
+      if (!myMessage.value.trim() || !pageIdRef.value) return;
 
       isSendingMessage.value = true;
       try {
@@ -161,10 +193,10 @@ export default {
               activity: "Create",
               type: "Message",
               content: myMessage.value,
-              target: chatIdRef.value,
+              target: pageIdRef.value,
               published: Date.now(),
             },
-            channels: [chatIdRef.value],
+            channels: [pageIdRef.value],
           },
           session.value,
         );
@@ -175,7 +207,7 @@ export default {
     }
 
     function back() {
-      router.push({ name: "home" });
+      router.push({ name: "chat", params: { chatId: chatIdRef.value } });
     }
 
     function getInitials(title) {
@@ -186,12 +218,13 @@ export default {
       myMessage,
       isSendingMessage,
       showMembersList,
-      showPagesList,
       areMessagesLoading,
       enrichedMessages,
-      chatTitle,
-      isChatLoaded,
+      pageTitle,
+      parentChatTitle,
+      isPageLoaded,
       chatId: chatIdRef,
+      pageId: pageIdRef,
       sendMessage,
       back,
       getInitials,

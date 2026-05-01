@@ -21,6 +21,7 @@ export default {
     const newChatTitle = ref("");
     const isCreatingChat = ref(false);
     const showNewChatForm = ref(false);
+    const searchQuery = ref("");
 
     // Fetch user settings to control message preview display
     const showMessagePreview = ref(true);
@@ -171,15 +172,21 @@ export default {
       return map;
     });
 
-    const sortedChats = computed(() =>
-      chatObjects.value.toSorted((a, b) => {
+    const sortedChats = computed(() => {
+      const q = searchQuery.value.trim().toLowerCase();
+      const chats = q
+        ? chatObjects.value.filter((chat) =>
+            chat.value.title.toLowerCase().includes(q),
+          )
+        : chatObjects.value;
+      return chats.toSorted((a, b) => {
         const aLatest = chatLatestMessages.value.get(a.value.channel);
         const bLatest = chatLatestMessages.value.get(b.value.channel);
         const aTime = aLatest?.message.value.published || a.value.published;
         const bTime = bLatest?.message.value.published || b.value.published;
         return bTime - aTime;
-      }),
-    );
+      });
+    });
 
     async function createChat() {
       if (!newChatTitle.value.trim()) return;
@@ -266,6 +273,7 @@ export default {
       newChatTitle,
       isCreatingChat,
       showNewChatForm,
+      searchQuery,
       isLoading,
       sortedChats,
       showMessagePreview,

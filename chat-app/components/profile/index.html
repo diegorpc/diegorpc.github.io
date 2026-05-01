@@ -4,51 +4,54 @@
     </header>
 
     <div class="profile-container">
-        <div class="profile-field">
-            <label class="profile-label">Graffiti Actor</label>
-            <div class="profile-actor">{{ $graffitiSession.value?.actor }}</div>
-            <div class="profile-handle">
-                <graffiti-actor-to-handle :actor="$graffitiSession.value?.actor"></graffiti-actor-to-handle>
-            </div>
+        <div v-if="isLoadingProfile" class="loading-spinner-container">
+            <div class="loading-spinner"></div>
         </div>
-
-        <form @submit.prevent="saveProfile()" class="profile-form">
+        <template v-else>
             <div class="profile-field">
-                <label class="profile-label" for="display-name">Display Name</label>
-                <input
-                    id="display-name"
-                    type="text"
-                    v-model="displayName"
-                    placeholder="Your display name"
-                    class="chat-title-input"
-                />
+                <label class="profile-label">Graffiti Actor</label>
+                <div class="profile-actor">{{ $graffitiSession.value?.actor }}</div>
+                <div class="profile-handle">
+                    <graffiti-actor-to-handle :actor="$graffitiSession.value?.actor"></graffiti-actor-to-handle>
+                </div>
             </div>
 
-            <div class="profile-field">
-                <label class="profile-label" for="bio">Bio</label>
-                <textarea
-                    id="bio"
-                    v-model="bio"
-                    placeholder="Tell others about yourself..."
-                    class="chat-title-input"
-                    rows="4"
-                ></textarea>
-            </div>
+            <form @submit.prevent="saveProfile()" class="profile-form">
+                <div class="profile-field">
+                    <label class="profile-label" for="display-name">Display Name</label>
+                    <input
+                        id="display-name"
+                        type="text"
+                        v-model="displayName"
+                        placeholder="Your display name"
+                        class="chat-title-input"
+                    />
+                </div>
 
-            <div class="form-actions">
-                <button type="submit" :disabled="isSavingProfile" class="create-btn">
-                    {{ isSavingProfile ? 'Saving...' : 'Save Profile' }}
+                <div class="profile-field">
+                    <label class="profile-label" for="bio">Bio</label>
+                    <textarea
+                        id="bio"
+                        v-model="bio"
+                        placeholder="Tell others about yourself..."
+                        class="chat-title-input"
+                        rows="4"
+                    ></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" :disabled="isSavingProfile" class="create-btn">
+                        {{ isSavingProfile ? 'Saving...' : 'Save Profile' }}
+                    </button>
+                </div>
+            </form>
+
+            <div class="profile-actions">
+                <button @click="logout()" class="logout-btn">
+                    <LogOut :size="18" />
+                    <span>Log Out</span>
                 </button>
             </div>
-        </form>
-
-        <p v-if="isLoadingProfile" class="loading-text">Loading profile...</p>
-
-        <div class="profile-actions">
-            <button @click="logout()" class="logout-btn">
-                <LogOut :size="18" />
-                <span>Log Out</span>
-            </button>
-        </div>
+        </template>
     </div>
 </div>

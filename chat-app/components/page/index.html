@@ -3,12 +3,12 @@
         <button @click="back()" class="back-btn" aria-label="Back">
             <ArrowLeft :size="22" />
         </button>
-        <template v-if="isChatLoaded">
-            <div class="chat-avatar small">{{ getInitials(chatTitle) }}</div>
-            <h2>{{ chatTitle }}</h2>
-            <button @click="showPagesList = true" class="members-btn" aria-label="Pages">
-                <Files :size="22" />
-            </button>
+        <template v-if="isPageLoaded">
+            <div class="chat-avatar small">{{ getInitials(pageTitle) }}</div>
+            <div class="page-header-title">
+                <div class="page-parent-name">{{ parentChatTitle || '...' }}'s</div>
+                <h2>{{ pageTitle }}</h2>
+            </div>
             <button @click="showMembersList = true" class="members-btn" aria-label="Members">
                 <Users :size="22" />
             </button>
@@ -20,16 +20,9 @@
 
     <members-list
         v-if="showMembersList"
-        :chat-id="chatId"
+        :chat-id="pageId"
         @close="showMembersList = false"
     ></members-list>
-
-    <pages-list
-        v-if="showPagesList"
-        :chat-id="chatId"
-        :chat-title="chatTitle"
-        @close="showPagesList = false"
-    ></pages-list>
 
     <div class="messages-container">
         <div v-if="areMessagesLoading" class="loading-spinner-container">

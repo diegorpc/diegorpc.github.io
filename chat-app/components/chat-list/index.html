@@ -23,12 +23,24 @@
         </form>
     </div>
 
+    <div v-if="!showNewChatForm" class="chat-search-row">
+        <div class="chat-search">
+            <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="Search chats..."
+                class="pages-search-input"
+            />
+        </div>
+    </div>
+
     <div class="chat-list-container">
         <div v-if="isLoading" class="loading-spinner-container">
             <div class="loading-spinner"></div>
         </div>
         <div v-else-if="sortedChats.length === 0" class="empty-state">
-            <p>No chats yet. Create one to get started!</p>
+            <p v-if="searchQuery">No chats match your search.</p>
+            <p v-else>No chats yet. Create one to get started!</p>
         </div>
         <ul v-else class="chat-list">
             <li v-for="chat in sortedChats" :key="chat.url" @click="openChat(chat)" class="chat-item">
