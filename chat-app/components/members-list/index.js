@@ -1,4 +1,4 @@
-import { ref, computed, toRef } from "vue";
+import { ref, computed, toRef, watchEffect } from "vue";
 import {
   useGraffiti,
   useGraffitiSession,
@@ -93,6 +93,41 @@ export default {
       return (name || "?").substring(0, 1).toUpperCase();
     }
 
+    // Discover the chat object to get its data for sharing
+    const TEMP_SHARED_CHANNEL = "designftw-26";
+    const chatDataRef = ref(null);
+    
+    // Try to get chat from creator's channel or shared channel
+    const { objects: chatMetaObjects } = useGraffitiDiscover(
+      computed(() => 
+        session.value?.actor 
+          ? [`${session.value.actor}/chats`, `${session.value.actor}/inbox`]
+          : []
+      ),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "title", "channel"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Chat" },
+              title: { type: "string" },
+              channel: { type: "string" },
+            },
+          },
+        },
+      },
+    );
+
+    watchEffect(() => {
+      const match = chatMetaObjects.value.find(
+        (c) => c.value.channel === chatIdRef.value,
+      );
+      if (match) {
+        chatDataRef.value = match.value;
+      }
+    });
+
     async function inviteMember() {
       const raw = inviteHandle.value.trim();
       if (!raw) return;
@@ -112,6 +147,7 @@ export default {
           return;
         }
 
+        // Add member to chat's members list
         await graffiti.post(
           {
             value: {
@@ -124,6 +160,23 @@ export default {
           },
           session.value,
         );
+
+        // Post chat to invitee's inbox so they can see it
+        if (chatDataRef.value) {
+          await graffiti.post(
+            {
+              value: {
+                activity: "Create",
+                type: "Chat",
+                title: chatDataRef.value.title,
+                channel: chatDataRef.value.channel,
+                published: chatDataRef.value.published,
+              },
+              channels: [`${actor}/inbox`],
+            },
+            session.value,
+          );
+        }
 
         inviteHandle.value = "";
         showInviteForm.value = false;

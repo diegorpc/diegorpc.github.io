@@ -50,11 +50,14 @@ export default {
       }
     });
 
-    // discover chat objects
-    // TODO: replace with user's personal channels once member invitations are implemented
+    // Discover chats from user's personal channels
     const { objects: chatObjects, isFirstPoll: areChatsLoading } =
       useGraffitiDiscover(
-        [TEMP_SHARED_CHANNEL],
+        computed(() => 
+          session.value?.actor 
+            ? [`${session.value.actor}/chats`, `${session.value.actor}/inbox`]
+            : []
+        ),
         {
           properties: {
             value: {
@@ -185,6 +188,7 @@ export default {
       try {
         const chatChannel = crypto.randomUUID();
 
+        // Post chat to creator's /chats channel
         await graffiti.post(
           {
             value: {
@@ -194,7 +198,7 @@ export default {
               channel: chatChannel,
               published: Date.now(),
             },
-            channels: [TEMP_SHARED_CHANNEL],
+            channels: [`${session.value.actor}/chats`],
           },
           session.value,
         );

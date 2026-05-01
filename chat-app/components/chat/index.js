@@ -113,7 +113,11 @@ export default {
     const shouldDiscoverChat = computed(() => !initialChatData);
     
     const { objects: chatMetaObjects } = useGraffitiDiscover(
-      computed(() => shouldDiscoverChat.value ? [TEMP_SHARED_CHANNEL] : []),
+      computed(() => 
+        shouldDiscoverChat.value && session.value?.actor
+          ? [`${session.value.actor}/chats`, `${session.value.actor}/inbox`]
+          : []
+      ),
       {
         properties: {
           value: {

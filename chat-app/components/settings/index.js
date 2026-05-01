@@ -38,7 +38,6 @@ export default {
       if (latest) {
         showMessagePreview.value = latest.value.showMessagePreview ?? true;
       }
-      // Mark hydrated AFTER value applies + DOM paints (prevents toggle animation flash)
       if (!isFirstPoll.value && !isHydrated.value) {
         nextTick(() => {
           requestAnimationFrame(() => {
