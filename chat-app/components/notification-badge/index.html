@@ -1,0 +1,3 @@
+<div v-if="bubble || count > 0" :class="['notification-badge', { 'notification-bubble': bubble }]">
+    <template v-if="!bubble">{{ count > 99 ? '99+' : count }}</template>
+</div>

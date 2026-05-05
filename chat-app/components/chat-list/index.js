@@ -5,6 +5,9 @@ import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
+import { componentFromFolder } from "../component-loader.js";
+
+const NotificationBadge = componentFromFolder("../notification-badge", import.meta.url);
 
 // for now just using the shared channel to discover chats from studio
 // later, chats would be discovered from:
@@ -13,6 +16,7 @@ import {
 const TEMP_SHARED_CHANNEL = "designftw-26";
 
 export default {
+  components: { NotificationBadge },
   setup() {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
@@ -101,8 +105,102 @@ export default {
       true,
     );
 
-    // Combined loading state - wait for both chats and messages
-    const isLoading = computed(() => areChatsLoading.value || areMessagesLoading.value);
+    // Discover pages for all chats
+    const { objects: allPageObjects, isFirstPoll: arePagesLoading } = useGraffitiDiscover(
+      computed(() => 
+        session.value?.actor 
+          ? [`${session.value.actor}/page-inbox`]
+          : []
+      ),
+      {
+        properties: {
+          value: {
+            required: [
+              "activity",
+              "type",
+              "title",
+              "channel",
+              "parentChatId",
+              "published",
+            ],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Page" },
+              title: { type: "string" },
+              channel: { type: "string" },
+              parentChatId: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
+      undefined,
+      true,
+    );
+
+    // Get page channels for discovering page messages
+    const pageChannels = computed(() =>
+      allPageObjects.value.map((p) => p.value.channel),
+    );
+
+    // Discover messages for all pages
+    const { objects: allPageMessageObjects, isFirstPoll: arePageMessagesLoading } = useGraffitiDiscover(
+      pageChannels,
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "content", "published"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Message" },
+              content: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
+      undefined,
+      true,
+    );
+
+    // Discover read states for all messages (chat + page messages)
+    const messageUrls = computed(() => [
+      ...allMessageObjects.value.map((m) => m.url),
+      ...allPageMessageObjects.value.map((m) => m.url),
+    ]);
+    const readStateChannels = computed(() =>
+      messageUrls.value.map((url) => `${url}/read-by`),
+    );
+
+    const { objects: readStateObjects, isFirstPoll: areReadStatesLoading } = useGraffitiDiscover(
+      readStateChannels,
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "reader", "messageUrl", "published"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "ReadState" },
+              reader: { type: "string" },
+              messageUrl: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
+      undefined,
+      true,
+    );
+
+    // Combined loading state - wait for all data sources before showing UI to prevent flickering
+    const isLoading = computed(() =>
+      areChatsLoading.value ||
+      areMessagesLoading.value ||
+      arePagesLoading.value ||
+      arePageMessagesLoading.value ||
+      areReadStatesLoading.value ||
+      pendingHandles.value.size > 0,
+    );
 
     // Get unique actors from all messages to fetch their profiles
     const uniqueActors = computed(() => [
@@ -124,19 +222,33 @@ export default {
       },
     );
 
-    // Resolve handles for actors
-    const actorHandles = ref({});
-    async function resolveHandle(actor) {
-      if (actorHandles.value[actor] !== undefined) return;
-      actorHandles.value[actor] = null;
+    // Cache for resolved handles
+    const handleCache = ref(new Map());
+    const pendingHandles = ref(new Set());
+    
+    // Resolve handle for an actor (with caching)
+    async function getActorHandle(actor) {
+      if (handleCache.value.has(actor)) {
+        return handleCache.value.get(actor);
+      }
+      if (pendingHandles.value.has(actor)) {
+        return null; // Already resolving
+      }
+      
+      pendingHandles.value.add(actor);
       try {
         const handle = await graffiti.actorToHandle(actor);
-        actorHandles.value[actor] = handle;
+        handleCache.value.set(actor, handle);
+        return handle;
       } catch {
-        actorHandles.value[actor] = null;
+        const fallback = actor.split(".")[0];
+        handleCache.value.set(actor, fallback);
+        return fallback;
+      } finally {
+        pendingHandles.value.delete(actor);
       }
     }
-
+    
     // Map actor to display name
     const actorDisplayNames = computed(() => {
       const map = new Map();
@@ -144,28 +256,62 @@ export default {
         const profile = profileObjects.value
           .filter((p) => p.actor === actor)
           .toSorted((a, b) => b.value.published - a.value.published)[0];
-        const displayName = profile?.value.displayName || null;
-        if (!displayName) resolveHandle(actor);
-        map.set(
-          actor,
-          displayName || actorHandles.value[actor] || actor.split(".")[0],
-        );
+        
+        if (profile?.value.displayName) {
+          map.set(actor, profile.value.displayName);
+        } else {
+          // Trigger handle resolution if not cached
+          if (!handleCache.value.has(actor)) {
+            getActorHandle(actor);
+          }
+          map.set(actor, handleCache.value.get(actor) || actor.split(".")[0]);
+        }
       }
       return map;
     });
 
-    // Compute latest message per chat
+    // Compute latest message per chat (including page messages)
     const chatLatestMessages = computed(() => {
       const map = new Map();
       for (const chat of chatObjects.value) {
+        // Get chat messages
         const chatMessages = allMessageObjects.value
           .filter((m) => m.channels.includes(chat.value.channel))
           .toSorted((a, b) => b.value.published - a.value.published);
-        if (chatMessages.length > 0) {
-          const latest = chatMessages[0];
+        
+        // Get pages for this chat where user is a member
+        const chatPagesForThisChat = allPageObjects.value.filter(
+          (p) => p.value.parentChatId === chat.value.channel &&
+                (p.value.members || []).includes(session.value?.actor),
+        );
+        const pageChannelsForThisChat = chatPagesForThisChat.map((p) => p.value.channel);
+        
+        // Get messages from all pages in this chat
+        const pageMessages = allPageMessageObjects.value.filter((m) =>
+          pageChannelsForThisChat.some((ch) => m.channels.includes(ch)),
+        ).toSorted((a, b) => b.value.published - a.value.published);
+        
+        // Combine and find the most recent message overall
+        const allMessages = [...chatMessages, ...pageMessages]
+          .toSorted((a, b) => b.value.published - a.value.published);
+        
+        if (allMessages.length > 0) {
+          const latest = allMessages[0];
+          const isPageMessage = pageMessages.some(m => m.url === latest.url);
+          let pageName = null;
+          
+          if (isPageMessage) {
+            // Find which page this message belongs to
+            const page = chatPagesForThisChat.find(p => 
+              latest.channels.includes(p.value.channel)
+            );
+            pageName = page?.value.title || null;
+          }
+          
           map.set(chat.value.channel, {
             message: latest,
             senderName: actorDisplayNames.value.get(latest.actor) || "Unknown",
+            pageName: pageName,
           });
         }
       }
@@ -203,6 +349,7 @@ export default {
               type: "Chat",
               title: newChatTitle.value,
               channel: chatChannel,
+              owner: session.value.actor,
               published: Date.now(),
             },
             channels: [`${session.value.actor}/chats`],
@@ -232,10 +379,18 @@ export default {
     }
 
     function openChat(chat) {
+      const hasNotif = hasUnreadPageMessages(chat);
       router.push({
         name: "chat",
         params: { chatId: chat.value.channel },
-        state: { chat: chat.value },
+        query: hasNotif ? { pageNotif: '1' } : {},
+        state: { 
+          chat: {
+            title: chat.value.title,
+            owner: chat.value.owner,
+            channel: chat.value.channel,
+          },
+        },
       });
     }
 
@@ -265,6 +420,75 @@ export default {
       return chatLatestMessages.value.get(chat.value.channel);
     }
 
+    // Calculate unread count for each chat (including page messages)
+    function getUnreadCount(chat) {
+      if (!session.value?.actor) return 0;
+
+      // Get chat messages
+      const chatMessages = allMessageObjects.value.filter((m) =>
+        m.channels.includes(chat.value.channel),
+      );
+
+      // Get pages for this chat where user is a member
+      const chatPagesForThisChat = allPageObjects.value.filter(
+        (p) => p.value.parentChatId === chat.value.channel &&
+              (p.value.members || []).includes(session.value.actor),
+      );
+      const pageChannelsForThisChat = chatPagesForThisChat.map((p) => p.value.channel);
+
+      // Get messages from all pages in this chat
+      const pageMessages = allPageMessageObjects.value.filter((m) =>
+        pageChannelsForThisChat.some((ch) => m.channels.includes(ch)),
+      );
+
+      // Combine chat and page messages
+      const allMessages = [...chatMessages, ...pageMessages];
+
+      const unreadMessages = allMessages.filter((msg) => {
+        // Don't count own messages as unread
+        if (msg.actor === session.value.actor) return false;
+
+        // Check if current user has marked this message as read
+        const hasReadState = readStateObjects.value.some(
+          (rs) =>
+            rs.value.messageUrl === msg.url &&
+            rs.value.reader === session.value.actor,
+        );
+        return !hasReadState;
+      });
+
+      return unreadMessages.length;
+    }
+
+    // Check if chat has unread page messages
+    function hasUnreadPageMessages(chat) {
+      if (!session.value?.actor) return false;
+
+      // Get pages for this chat where user is a member
+      const chatPagesForThisChat = allPageObjects.value.filter(
+        (p) => p.value.parentChatId === chat.value.channel &&
+              (p.value.members || []).includes(session.value.actor),
+      );
+      const pageChannelsForThisChat = chatPagesForThisChat.map((p) => p.value.channel);
+
+      // Get messages from all pages in this chat
+      const pageMessages = allPageMessageObjects.value.filter((m) =>
+        pageChannelsForThisChat.some((ch) => m.channels.includes(ch)),
+      );
+
+      const unreadPageMessages = pageMessages.filter((msg) => {
+        if (msg.actor === session.value.actor) return false;
+        const hasReadState = readStateObjects.value.some(
+          (rs) =>
+            rs.value.messageUrl === msg.url &&
+            rs.value.reader === session.value.actor,
+        );
+        return !hasReadState;
+      });
+
+      return unreadPageMessages.length > 0;
+    }
+
     function getInitials(title) {
       return (title || "?").substring(0, 2).toUpperCase();
     }
@@ -283,6 +507,7 @@ export default {
       formatTimeSince,
       getInitials,
       getLatestMessageInfo,
+      getUnreadCount,
     };
   },
 };

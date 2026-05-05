@@ -1,4 +1,4 @@
-import { ref, computed, toRef, watchEffect } from "vue";
+import { ref, computed, toRef, watchEffect, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -34,6 +34,7 @@ export default {
     const initialParentTitle = routeState.parentChatTitle || "";
 
     const pageTitleRef = ref(initialPage?.title || "");
+    const pageOwnerRef = ref(initialPage?.owner || null);
     const parentChatTitleRef = ref(initialParentTitle);
     const isPageLoaded = ref(!!initialPage);
 
@@ -62,6 +63,30 @@ export default {
       messageObjects.value.toSorted(
         (a, b) => a.value.published - b.value.published,
       ),
+    );
+
+    // Discover read states for all messages in this page
+    const messageUrls = computed(() => messageObjects.value.map((m) => m.url));
+    const readStateChannels = computed(() =>
+      messageUrls.value.map((url) => `${url}/read-by`),
+    );
+
+    const { objects: readStateObjects } = useGraffitiDiscover(
+      readStateChannels,
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "reader", "messageUrl", "published"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "ReadState" },
+              reader: { type: "string" },
+              messageUrl: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
     );
 
     const uniqueActors = computed(() => [
@@ -138,6 +163,7 @@ export default {
       );
       if (match?.value.title) {
         pageTitleRef.value = match.value.title;
+        pageOwnerRef.value = match.value.owner || null;
         isPageLoaded.value = true;
       }
     });
@@ -180,7 +206,58 @@ export default {
     });
 
     const pageTitle = computed(() => pageTitleRef.value);
+    const pageOwner = computed(() => pageOwnerRef.value);
     const parentChatTitle = computed(() => parentChatTitleRef.value);
+
+    // Mark all messages as read when component mounts or when new messages arrive
+    async function markMessagesAsRead() {
+      if (!session.value?.actor || messageObjects.value.length === 0) return;
+
+      const messagesToMarkRead = messageObjects.value.filter((msg) => {
+        // Check if current user has already marked this message as read
+        const hasReadState = readStateObjects.value.some(
+          (rs) =>
+            rs.value.messageUrl === msg.url &&
+            rs.value.reader === session.value.actor,
+        );
+        return !hasReadState && msg.actor !== session.value.actor;
+      });
+
+      // Post read states for unread messages
+      try {
+        await Promise.all(
+          messagesToMarkRead.map((msg) =>
+            graffiti.post(
+              {
+                value: {
+                  activity: "Create",
+                  type: "ReadState",
+                  reader: session.value.actor,
+                  messageUrl: msg.url,
+                  published: Date.now(),
+                },
+                channels: [`${msg.url}/read-by`],
+              },
+              session.value,
+            ),
+          ),
+        );
+      } catch (err) {
+        console.error("Error marking messages as read:", err);
+      }
+    }
+
+    // Mark messages as read when component mounts and when messages change
+    onMounted(() => {
+      markMessagesAsRead();
+    });
+
+    watchEffect(() => {
+      // Re-run when messages or read states change
+      if (messageObjects.value.length > 0 && readStateObjects.value) {
+        markMessagesAsRead();
+      }
+    });
 
     async function sendMessage() {
       if (!myMessage.value.trim() || !pageIdRef.value) return;
@@ -207,7 +284,11 @@ export default {
     }
 
     function back() {
-      router.push({ name: "chat", params: { chatId: chatIdRef.value } });
+      router.push({ 
+        name: "chat", 
+        params: { chatId: chatIdRef.value },
+        query: { openPagesList: 'true' }
+      });
     }
 
     function getInitials(title) {
@@ -221,6 +302,7 @@ export default {
       areMessagesLoading,
       enrichedMessages,
       pageTitle,
+      pageOwner,
       parentChatTitle,
       isPageLoaded,
       chatId: chatIdRef,

@@ -5,15 +5,19 @@ import { GraffitiDecentralized } from "@graffiti-garden/implementation-decentral
 import { GraffitiPlugin } from "@graffiti-garden/wrapper-vue";
 import {
   Plus,
-  ArrowLeft,
   Send,
   Trash2,
+  X,
+  Crown,
   MessageCircle,
   User,
   LogOut,
   Settings as SettingsIcon,
   Users,
   Files,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-vue-next";
 import { componentFromFolder } from "./components/component-loader.js";
 
@@ -50,7 +54,7 @@ const app = createApp(App)
   .use(router);
 
 // Register Lucide icons globally so any template can use them.
-const icons = { Plus, ArrowLeft, Send, Trash2, MessageCircle, User, LogOut, SettingsIcon, Users, Files };
+const icons = { Plus, Send, Trash2, X, Crown, MessageCircle, User, LogOut, SettingsIcon, Users, Files, ChevronUp, ChevronLeft, ChevronRight };
 for (const [name, component] of Object.entries(icons)) {
   app.component(name, component);
 }

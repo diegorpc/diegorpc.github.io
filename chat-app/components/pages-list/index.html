@@ -2,9 +2,9 @@
     <div class="pages-panel">
         <header class="pages-header">
             <button @click="close()" class="back-btn" aria-label="Close">
-                <ArrowLeft :size="22" />
+                <ChevronUp :size="22" />
             </button>
-            <h2>Pages</h2>
+            <h2>{{ chatTitle }}'s Pages</h2>
         </header>
 
         <div v-if="!showCreateForm" class="pages-search-row">
@@ -93,10 +93,13 @@
                             <template v-else>Tap to open</template>
                         </div>
                     </div>
-                    <div class="page-time">
-                        {{ getLatestMessageInfo(page)
-                            ? formatTimeSince(getLatestMessageInfo(page).message.value.published)
-                            : formatTimeSince(page.value.published) }}
+                    <div class="page-meta">
+                        <div class="page-time">
+                            {{ getLatestMessageInfo(page)
+                                ? formatTimeSince(getLatestMessageInfo(page).message.value.published)
+                                : formatTimeSince(page.value.published) }}
+                        </div>
+                        <NotificationBadge :count="getUnreadCount(page)" />
                     </div>
                 </li>
             </ul>

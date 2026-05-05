@@ -1,12 +1,12 @@
 <div class="chat-view">
     <header class="chat-header">
         <button @click="back()" class="back-btn" aria-label="Back">
-            <ArrowLeft :size="22" />
+            <ChevronLeft :size="22" />
         </button>
         <template v-if="isChatLoaded">
             <div class="chat-avatar small">{{ getInitials(chatTitle) }}</div>
             <h2>{{ chatTitle }}</h2>
-            <button @click="showPagesList = true" class="members-btn" aria-label="Pages">
+            <button @click="showPagesList = true" :class="['members-btn', { 'has-notification': hasPageNotifications }]" aria-label="Pages">
                 <Files :size="22" />
             </button>
             <button @click="showMembersList = true" class="members-btn" aria-label="Members">
@@ -21,6 +21,8 @@
     <members-list
         v-if="showMembersList"
         :chat-id="chatId"
+        :chat-owner="chatOwner"
+        :chat-title="chatTitle"
         @close="showMembersList = false"
     ></members-list>
 

@@ -11,6 +11,7 @@
 
     --bg1: #ffffff;
     --bg2: #f5f5f5;
+    --bg3: #e8e8e8;
 
     --fg: #1D1B20;
     --fg-light: #666;
@@ -198,6 +199,14 @@ body {
     overflow: hidden;
 }
 
+.chat-arrow {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--accent-primary);
+    margin-left:1rem;
+}
+
 .chat-name {
     font-weight: var(--weightSemiBold);
     font-size: 1rem;
@@ -211,6 +220,11 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.chat-preview .page-prefix {
+    font-weight: var(--weightRegular);
+    opacity: 0.75;
 }
 
 .chat-meta {
@@ -267,6 +281,21 @@ body {
     background-color: var(--bg2);
 }
 
+.members-btn.has-notification {
+    position: relative;
+}
+
+.members-btn.has-notification::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 8px;
+    height: 8px;
+    background-color: #ff3b30;
+    border-radius: 50%;
+}
+
 .members-overlay {
     position: absolute;
     inset: 0;
@@ -274,14 +303,16 @@ body {
     z-index: 20;
     display: flex;
     flex-direction: column;
+    padding-top: 70px;
 }
 
 .members-panel {
-    background-color: var(--bg1);
-    flex: 1;
+    background: var(--bg1);
+    border-radius: var(--border-lg);
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
+    max-height: 100%;
 }
 
 .members-header {
@@ -291,12 +322,16 @@ body {
     background-color: var(--bg1);
     border-bottom: 1px solid #e0e0e0;
     gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .members-header h2 {
     font-size: 1.25rem;
     font-weight: var(--weightSemiBold);
     margin: 0;
+    color: var(--accent-primary);
 }
 
 .members-grid {
@@ -304,6 +339,33 @@ body {
     grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
     padding: 1.5rem;
+    max-height: 240px; /* ~2 rows */
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.invite-divider {
+    height: 1px;
+    background: var(--bg3);
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.invite-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.invite-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--fg-light);
+    font-size: 0.9rem;
+    padding: 1rem;
 }
 
 .member-tile {
@@ -601,7 +663,7 @@ body {
 .app-nav {
     display: flex;
     border-top: 1px solid #e0e0e0;
-    background-color: var(--bg1);
+    background-color: var(--bg2);
 }
 
 .nav-link {
@@ -795,16 +857,18 @@ body {
     background: rgba(0, 0, 0, 0.3);
     z-index: 20;
     display: flex;
-    flex-direction: column;
+    padding-top: 70px;
 }
 
 .pages-panel {
     background-color: var(--bg1);
     flex: 1;
+    border-radius: var(--border-md);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     min-height: 0;
+    max-height: 290px;
 }
 
 .pages-header {
@@ -813,7 +877,11 @@ body {
     padding: 1rem 1.5rem;
     background-color: var(--bg1);
     border-bottom: 1px solid #e0e0e0;
+    border-top: 4px solid var(--border-color);
     gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .pages-header h2 {
@@ -899,6 +967,10 @@ body {
     border: 1.5px solid var(--bg1);
 }
 
+.page-member-chip.is-adding {
+    border: 1px solid var(--accent-primary);
+}
+
 .page-member-more {
     background-color: var(--fg-light);
     font-size: 0.55rem;
@@ -925,12 +997,16 @@ body {
     text-overflow: ellipsis;
 }
 
+.page-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
 .page-time {
     color: var(--fg-light);
     font-size: 0.75rem;
     flex-shrink: 0;
-    align-self: flex-start;
-    padding-top: 0.25rem;
 }
 
 /* New page form */
@@ -1023,4 +1099,192 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Member tile owner badge and remove button */
+.member-tile {
+    position: relative;
+}
+
+.owner-crown {
+    color: #f0b429;
+    vertical-align: middle;
+    margin-left: 0.2rem;
+    flex-shrink: 0;
+}
+
+.remove-member-btn {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #e0e0e0;
+    color: var(--fg-light);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.remove-member-btn:hover {
+    background-color: #c00;
+    color: white;
+}
+
+.remove-member-confirm {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.remove-cancel-btn,
+.remove-confirm-btn {
+    font-family: 'Lexend', sans-serif;
+    font-size: 0.65rem;
+    font-weight: var(--weightMedium);
+    padding: 0.2em 0.5em;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.remove-cancel-btn {
+    background-color: var(--bg3);
+    color: var(--fg);
+}
+
+.remove-confirm-btn {
+    background-color: #c00;
+    color: white;
+}
+
+/* Member tile removing state */
+.member-tile.is-removing {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Member tile adding state */
+.member-tile.is-adding {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.remove-member-btn:disabled,
+.remove-cancel-btn:disabled,
+.remove-confirm-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Add-from-chat elevated overlay (page mode) */
+.add-from-chat-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 10;
+    border-radius: var(--border-lg);
+}
+
+.add-from-chat-panel {
+    background: var(--bg);
+    width: 100%;
+    max-height: 75%;
+    border-radius: var(--border-lg) var(--border-lg) 0 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 1rem 1.25rem;
+    overflow: hidden;
+}
+
+.add-from-chat-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0.5rem;
+    border-bottom: 1px solid var(--bg3);
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+.add-from-chat-header h2 {
+    font-size: 1.1rem;
+    font-weight: var(--weightSemiBold);
+    color: var(--accent-primary);
+    margin: 0;
+}
+
+.add-from-chat-panel .page-member-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    overflow-y: auto;
+    padding: 0.25rem 0;
+}
+
+/* Message delete confirmation */
+.delete-confirm {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.delete-cancel-btn,
+.delete-confirm-btn {
+    font-family: 'Lexend', sans-serif;
+    font-size: 0.65rem;
+    font-weight: var(--weightMedium);
+    padding: 0.15em 0.5em;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.delete-cancel-btn {
+    background-color: rgba(255,255,255,0.25);
+    color: inherit;
+}
+
+.delete-confirm-btn {
+    background-color: rgba(180,0,0,0.85);
+    color: white;
+}
+
+.delete-confirm-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Notification Badge */
+.notification-badge {
+    min-width: 20px;
+    height: 15px;
+    border-radius: 10px;
+    background-color: #ff3b30;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: var(--weightMedium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    line-height: 1;
+}
+
+.notification-bubble {
+    min-width: 8px;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border-radius: 50%;
 }

@@ -49,7 +49,7 @@
                     <div class="chat-name">{{ chat.value.title }}</div>
                     <div v-if="!showMessagePreview || !getLatestMessageInfo(chat)" class="chat-preview">Tap to open</div>
                     <div v-else class="chat-preview">
-                        <strong>{{ getLatestMessageInfo(chat).senderName }}:</strong> {{ getLatestMessageInfo(chat).message.value.content }}
+                        <span v-if="getLatestMessageInfo(chat).pageName" class="page-prefix">{{ getLatestMessageInfo(chat).pageName }} &gt; </span><strong>{{ getLatestMessageInfo(chat).senderName }}:</strong> {{ getLatestMessageInfo(chat).message.value.content }}
                     </div>
                 </div>
                 <div class="chat-meta">
@@ -58,6 +58,10 @@
                             ? formatTimeSince(getLatestMessageInfo(chat).message.value.published)
                             : formatTimeSince(chat.value.published) }}
                     </div>
+                    <NotificationBadge :count="getUnreadCount(chat)" />
+                </div>
+                <div class="chat-arrow">
+                    <ChevronRight :size="20" :color="'var(--accent-primary)'" />
                 </div>
             </li>
         </ul>

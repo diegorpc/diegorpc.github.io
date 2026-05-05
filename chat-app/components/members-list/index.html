@@ -2,40 +2,110 @@
     <div class="members-panel">
         <header class="members-header">
             <button @click="$emit('close')" class="back-btn" aria-label="Close">
-                <ArrowLeft :size="22" />
+                <ChevronUp :size="22" />
             </button>
             <h2>Members</h2>
         </header>
 
-        <div class="members-grid">
-            <div v-for="member in members" :key="member.actor" class="member-tile">
-                <div class="member-avatar">{{ getInitial(member) }}</div>
-                <div class="member-name">{{ member.displayName || member.handle || '...' }}</div>
-            </div>
-
-            <button class="member-tile add-member-tile" @click="showInviteForm = !showInviteForm" aria-label="Invite member">
-                <div class="member-avatar add-avatar">
-                    <Plus :size="28" />
-                </div>
-                <div class="member-name">Invite</div>
-            </button>
+        <div v-if="isLoading" class="loading-spinner-container">
+            <div class="loading-spinner"></div>
         </div>
 
-        <form v-if="showInviteForm" @submit.prevent="inviteMember()" class="invite-form">
-            <label class="invite-label">Graffiti handle</label>
-            <div class="invite-row">
-                <input
-                    type="text"
-                    v-model="inviteHandle"
-                    placeholder="e.g. john"
-                    class="chat-title-input"
-                    :disabled="isInviting"
-                />
-                <button type="submit" :disabled="isInviting || !inviteHandle.trim()" class="create-btn invite-btn">
-                    {{ isInviting ? 'Adding...' : 'Add' }}
+        <template v-else>
+            <div class="members-grid">
+                <div
+                    v-for="member in members"
+                    :key="member.actor"
+                    class="member-tile"
+                    :class="{ 'is-removing': removingActor === member.actor, 'is-adding': addingActor === member.actor }"
+                >
+                    <div class="member-avatar">{{ getInitial(member) }}</div>
+                    <div class="member-name">
+                        {{ member.label }}
+                        <Crown v-if="member.isOwner" :size="12" class="owner-crown" />
+                    </div>
+                    <template v-if="isOwner && !member.isOwner">
+                        <button
+                            v-if="confirmingRemove !== member.actor"
+                            @click="confirmingRemove = member.actor"
+                            class="remove-member-btn"
+                            :disabled="!!removingActor"
+                            :aria-label="`Remove ${member.label}`"
+                            title="Remove member"
+                        >
+                            <X :size="14" />
+                        </button>
+                        <div v-else class="remove-member-confirm">
+                            <button
+                                @click="confirmingRemove = null"
+                                class="remove-cancel-btn"
+                                :disabled="!!removingActor"
+                            >Cancel</button>
+                            <button
+                                @click="removeMember(member.actor)"
+                                class="remove-confirm-btn"
+                                :disabled="!!removingActor"
+                            >
+                                {{ removingActor === member.actor ? '…' : 'Remove' }}
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <button
+                    v-if="isOwner"
+                    class="member-tile add-member-tile"
+                    @click="showInviteForm = !showInviteForm"
+                    :disabled="!!removingActor"
+                    aria-label="Add member"
+                >
+                    <div class="member-avatar add-avatar">
+                        <Plus :size="28" />
+                    </div>
+                    <div class="member-name">{{ isPage ? 'Add' : 'Invite' }}</div>
                 </button>
             </div>
-            <p v-if="inviteError" class="invite-error">{{ inviteError }}</p>
-        </form>
+
+            <template v-if="showInviteForm">
+                <div class="invite-divider"></div>
+
+                <!-- Page mode: chip picker from parent chat -->
+                <template v-if="isPage">
+                    <div v-if="invitableParentMembers.length === 0" class="invite-empty">
+                        All chat members are already in this page.
+                    </div>
+                    <div v-else class="invite-picker">
+                        <button
+                            v-for="member in invitableParentMembers"
+                            :key="member.actor"
+                            type="button"
+                            class="page-member-option"
+                            @click="addPageMember(member.actor); showInviteForm = false"
+                        >
+                            <div class="page-member-avatar">{{ getInitial(member) }}</div>
+                            <div class="page-member-name">{{ member.label }}</div>
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Chat mode: invite by handle -->
+                <form v-else @submit.prevent="inviteMember()" class="invite-form">
+                    <label class="invite-label">Handle (e.g. john)</label>
+                    <div class="invite-row">
+                        <input
+                            type="text"
+                            v-model="inviteHandle"
+                            placeholder="e.g. john"
+                            class="chat-title-input"
+                            :disabled="isInviting"
+                        />
+                        <button type="submit" :disabled="isInviting || !inviteHandle.trim()" class="create-btn invite-btn">
+                            {{ isInviting ? 'Adding...' : 'Add' }}
+                        </button>
+                    </div>
+                    <p v-if="inviteError" class="invite-error">{{ inviteError }}</p>
+                </form>
+            </template>
+        </template>
     </div>
 </div>

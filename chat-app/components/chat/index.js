@@ -1,4 +1,4 @@
-import { ref, computed, toRef, watchEffect } from "vue";
+import { ref, computed, toRef, watchEffect, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -33,8 +33,20 @@ export default {
     // Get chat data from router state if available (for immediate display)
     const initialChatData = router.currentRoute.value.state?.chat || null;
     const chatTitleRef = ref(initialChatData?.title || "");
+    const chatOwnerRef = ref(initialChatData?.owner || null);
     // Header is loaded immediately if we have initial data, otherwise wait for discovery
     const isChatLoaded = ref(!!initialChatData);
+
+    // Get page notifications flag from query parameter
+    const hasPageNotifications = ref(router.currentRoute.value.query.pageNotif === '1');
+    
+    // Clear the query parameter after reading it
+    if (router.currentRoute.value.query.pageNotif) {
+      router.replace({
+        name: 'chat',
+        params: { chatId: chatIdRef.value },
+      });
+    }
 
     // Discover messages in this chat's channel.
     const { objects: messageObjects, isFirstPoll: areMessagesLoading } =
@@ -62,6 +74,31 @@ export default {
         (a, b) => a.value.published - b.value.published,
       ),
     );
+
+    // Discover read states for all messages in this chat
+    const messageUrls = computed(() => messageObjects.value.map((m) => m.url));
+    const readStateChannels = computed(() =>
+      messageUrls.value.map((url) => `${url}/read-by`),
+    );
+
+    const { objects: readStateObjects } = useGraffitiDiscover(
+      readStateChannels,
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "reader", "messageUrl", "published"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "ReadState" },
+              reader: { type: "string" },
+              messageUrl: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
+    );
+
 
     // Get unique actors from messages to fetch their profiles
     const uniqueActors = computed(() => [
@@ -144,11 +181,79 @@ export default {
       );
       if (match?.value.title) {
         chatTitleRef.value = match.value.title;
+        chatOwnerRef.value = match.value.owner || null;
         isChatLoaded.value = true;
       }
     });
 
     const chatTitle = computed(() => chatTitleRef.value);
+    const chatOwner = computed(() => chatOwnerRef.value);
+
+    // Open pages list if query parameter is set
+    watch(
+      () => router.currentRoute.value.query.openPagesList,
+      (shouldOpen) => {
+        if (shouldOpen === 'true') {
+          showPagesList.value = true;
+          // Clear the query parameter
+          router.replace({ 
+            name: "chat", 
+            params: { chatId: chatIdRef.value } 
+          });
+        }
+      },
+      { immediate: true }
+    );
+
+    // Mark all messages as read when component mounts or when new messages arrive
+    async function markMessagesAsRead() {
+      if (!session.value?.actor || messageObjects.value.length === 0) return;
+
+      const messagesToMarkRead = messageObjects.value.filter((msg) => {
+        // Check if current user has already marked this message as read
+        const hasReadState = readStateObjects.value.some(
+          (rs) =>
+            rs.value.messageUrl === msg.url &&
+            rs.value.reader === session.value.actor,
+        );
+        return !hasReadState && msg.actor !== session.value.actor;
+      });
+
+      // Post read states for unread messages
+      try {
+        await Promise.all(
+          messagesToMarkRead.map((msg) =>
+            graffiti.post(
+              {
+                value: {
+                  activity: "Create",
+                  type: "ReadState",
+                  reader: session.value.actor,
+                  messageUrl: msg.url,
+                  published: Date.now(),
+                },
+                channels: [`${msg.url}/read-by`],
+              },
+              session.value,
+            ),
+          ),
+        );
+      } catch (err) {
+        console.error("Error marking messages as read:", err);
+      }
+    }
+
+    // Mark messages as read when component mounts and when messages change
+    onMounted(() => {
+      markMessagesAsRead();
+    });
+
+    watchEffect(() => {
+      // Re-run when messages or read states change
+      if (messageObjects.value.length > 0 && readStateObjects.value) {
+        markMessagesAsRead();
+      }
+    });
 
     async function sendMessage() {
       if (!myMessage.value.trim() || !chatIdRef.value) return;
@@ -190,11 +295,13 @@ export default {
       areMessagesLoading,
       enrichedMessages,
       chatTitle,
+      chatOwner,
       isChatLoaded,
       chatId: chatIdRef,
       sendMessage,
       back,
       getInitials,
+      hasPageNotifications,
     };
   },
 };

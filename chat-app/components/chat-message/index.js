@@ -15,12 +15,14 @@ export default {
     const session = useGraffitiSession();
 
     const isDeleting = ref(false);
+    const confirmingDelete = ref(false);
 
     const isOwnMessage = computed(
       () => props.message.actor === session.value?.actor,
     );
 
     async function deleteMessage() {
+      confirmingDelete.value = false;
       isDeleting.value = true;
       try {
         await graffiti.delete(props.message, session.value);
@@ -40,6 +42,7 @@ export default {
     return {
       isOwnMessage,
       isDeleting,
+      confirmingDelete,
       deleteMessage,
       formatTime,
     };

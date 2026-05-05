@@ -9,15 +9,21 @@
         <div class="message-content">{{ message.value.content }}</div>
         <div class="message-footer">
             <span class="message-time">{{ formatTime(message.value.published) }}</span>
-            <button
-                v-if="isOwnMessage"
-                @click="deleteMessage()"
-                :disabled="isDeleting"
-                class="delete-btn"
-                aria-label="Delete message"
-            >
-                <Trash2 :size="14" />
-            </button>
+            <template v-if="isOwnMessage">
+                <button
+                    v-if="!confirmingDelete"
+                    @click="confirmingDelete = true"
+                    :disabled="isDeleting"
+                    class="delete-btn"
+                    aria-label="Delete message"
+                >
+                    <X :size="14" />
+                </button>
+                <span v-else class="delete-confirm">
+                    <button @click="confirmingDelete = false" class="delete-cancel-btn">Cancel</button>
+                    <button @click="deleteMessage()" :disabled="isDeleting" class="delete-confirm-btn">Delete</button>
+                </span>
+            </template>
         </div>
     </div>
 </div>
