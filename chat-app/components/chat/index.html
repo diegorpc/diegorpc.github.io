@@ -47,11 +47,25 @@
                 :message="item.message"
                 :is-block-start="item.isBlockStart"
                 :display-name="item.displayName"
+                :read-state-objects="readStateObjects"
+                :actor-display-names="actorDisplayNames"
+                :message-actors="uniqueActors"
+                @reply="handleReply"
             ></chat-message>
         </div>
     </div>
 
     <footer class="message-input-footer">
+        <div v-if="replyingTo" class="reply-preview-bar">
+            <Reply :size="14" />
+            <div class="reply-preview-content">
+                <span class="reply-preview-author">{{ replyingTo.displayName || 'Replying' }}</span>
+                <span class="reply-preview-text">{{ replyingTo.content }}</span>
+            </div>
+            <button class="reply-cancel-btn" @click="replyingTo = null" aria-label="Cancel reply">
+                <X :size="15" />
+            </button>
+        </div>
         <form @submit.prevent="sendMessage()" class="message-form">
             <input
                 type="text"

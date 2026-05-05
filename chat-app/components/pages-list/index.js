@@ -97,9 +97,9 @@ export default {
       true,
     );
 
-    // Combined loading state - don't show pages until messages arrive and handles resolve
+    // Combined loading state - don't show pages until chat title, messages, and handles are ready
     const isPagesListLoading = computed(() =>
-      arePagesLoading.value || arePageMessagesLoading.value || pendingHandles.value.size > 0,
+      !chatTitleRef.value || arePagesLoading.value || arePageMessagesLoading.value || pendingHandles.value.size > 0,
     );
 
     // Discover read states for all page messages
@@ -425,7 +425,7 @@ export default {
       newPageTitle,
       selectedMembers,
       isCreatingPage,
-      arePagesLoading: isPagesListLoading,
+      isPagesListLoading,
       filteredPages,
       parentChatMembers,
       getPageMembers,

@@ -1,4 +1,10 @@
-<div :class="['message', isOwnMessage ? 'own-message' : 'other-message', { 'message-block-start': isBlockStart, 'message-block-continue': !isBlockStart }]">
+<div
+    :class="['message', isOwnMessage ? 'own-message' : 'other-message', { 'message-block-start': isBlockStart, 'message-block-continue': !isBlockStart }]"
+    @contextmenu.prevent="openMenu"
+    @touchstart.passive="startLongPress"
+    @touchend="cancelLongPress"
+    @touchmove="cancelLongPress"
+>
     <div v-if="!isOwnMessage && isBlockStart" class="message-sender">
         <span v-if="displayName" class="display-name">{{ displayName }}</span>
         <span v-else class="actor-handle">
@@ -6,24 +12,123 @@
         </span>
     </div>
     <div class="message-bubble">
-        <div class="message-content">{{ message.value.content }}</div>
-        <div class="message-footer">
-            <span class="message-time">{{ formatTime(message.value.published) }}</span>
-            <template v-if="isOwnMessage">
-                <button
-                    v-if="!confirmingDelete"
-                    @click="confirmingDelete = true"
-                    :disabled="isDeleting"
-                    class="delete-btn"
-                    aria-label="Delete message"
-                >
-                    <X :size="14" />
-                </button>
-                <span v-else class="delete-confirm">
-                    <button @click="confirmingDelete = false" class="delete-cancel-btn">Cancel</button>
-                    <button @click="deleteMessage()" :disabled="isDeleting" class="delete-confirm-btn">Delete</button>
-                </span>
-            </template>
+        <div v-if="replyQuote" class="reply-quote">
+            <div class="reply-quote-author">
+                <span v-if="replyQuote.displayName">{{ replyQuote.displayName }}</span>
+                <graffiti-actor-to-handle v-else :actor="replyQuote.actor"></graffiti-actor-to-handle>
+            </div>
+            <div class="reply-quote-content">{{ replyQuote.content }}</div>
         </div>
+        <div class="message-content">{{ message.value.content }}</div>
     </div>
+
+    <Teleport to="body">
+        <div v-if="showMenu" class="msg-menu-overlay" @click.self="closeMenu">
+
+            <!-- Floating mode: bubble clone sits at original position, acting as highlight -->
+            <div
+                v-if="menuFloating"
+                :class="['msg-menu-lifted-bubble', isOwnMessage ? 'msg-menu-lifted-bubble-own' : 'msg-menu-lifted-bubble-other']"
+                :style="liftedBubbleStyle"
+            >
+                <div v-if="replyQuote" class="reply-quote reply-quote-preview">
+                    <div class="reply-quote-author">
+                        <span v-if="replyQuote.displayName">{{ replyQuote.displayName }}</span>
+                        <graffiti-actor-to-handle v-else :actor="replyQuote.actor"></graffiti-actor-to-handle>
+                    </div>
+                    <div class="reply-quote-content">{{ replyQuote.content }}</div>
+                </div>
+                <div class="message-content">{{ message.value.content }}</div>
+            </div>
+
+            <!-- Menu card -->
+            <div class="msg-menu-sheet" :style="menuStyle">
+
+                <!-- Bottom-sheet only: full message preview with time -->
+                <div
+                    v-if="!menuFloating"
+                    :class="['msg-menu-preview', isOwnMessage ? 'msg-menu-preview-own' : 'msg-menu-preview-other']"
+                >
+                    <div v-if="replyQuote" class="reply-quote reply-quote-preview">
+                        <div class="reply-quote-author">
+                            <span v-if="replyQuote.displayName">{{ replyQuote.displayName }}</span>
+                            <graffiti-actor-to-handle v-else :actor="replyQuote.actor"></graffiti-actor-to-handle>
+                        </div>
+                        <div class="reply-quote-content">{{ replyQuote.content }}</div>
+                    </div>
+                    <div class="msg-menu-preview-text">{{ message.value.content }}</div>
+                    <div class="msg-menu-preview-time">{{ formatTime(message.value.published) }}</div>
+                </div>
+
+                <!-- Floating only: slim time header -->
+                <div v-if="menuFloating" class="msg-menu-time-header">
+                    {{ formatTime(message.value.published) }}
+                </div>
+
+                <!-- Read status sub-panel -->
+                <template v-if="showReadStatus">
+                    <button class="menu-action menu-action-back" @click="showReadStatus = false">
+                        <ChevronLeft :size="16" />
+                        <span>Back</span>
+                    </button>
+                    <div class="read-status-content">
+                        <div class="read-status-heading">Read status</div>
+                        <div v-if="readStatusPerActor.length === 0" class="read-status-empty">
+                            No other participants yet
+                        </div>
+                        <ul v-else class="read-status-list">
+                            <li v-for="item in readStatusPerActor" :key="item.actor" class="read-status-item">
+                                <div class="read-status-avatar">
+                                    <span v-if="item.displayName">{{ item.displayName.substring(0, 2).toUpperCase() }}</span>
+                                    <User v-else :size="13" />
+                                </div>
+                                <span class="read-status-name">
+                                    <span v-if="item.displayName">{{ item.displayName }}</span>
+                                    <graffiti-actor-to-handle v-else :actor="item.actor"></graffiti-actor-to-handle>
+                                </span>
+                                <span v-if="item.hasRead && item.readAt" class="read-status-time">
+                                    {{ formatTime(item.readAt) }}
+                                </span>
+                                <Eye v-if="item.hasRead" :size="16" class="read-status-icon read-status-icon-read" />
+                                <EyeOff v-else :size="16" class="read-status-icon read-status-icon-unread" />
+                            </li>
+                        </ul>
+                    </div>
+                </template>
+
+                <!-- Delete confirmation -->
+                <template v-else-if="confirmingDelete">
+                    <div class="menu-delete-confirm">
+                        <p class="menu-delete-warning">Delete this message?</p>
+                        <div class="menu-delete-actions">
+                            <button @click="confirmingDelete = false" class="menu-confirm-cancel">Cancel</button>
+                            <button @click="deleteMessage()" :disabled="isDeleting" class="menu-confirm-danger">
+                                {{ isDeleting ? 'Deleting…' : 'Delete' }}
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Main actions -->
+                <template v-else>
+                    <button class="menu-action" @click="handleReply">
+                        <Reply :size="18" />
+                        <span>Reply</span>
+                    </button>
+                    <button class="menu-action" @click="showReadStatus = true">
+                        <Eye :size="18" />
+                        <span>View read status</span>
+                    </button>
+                    <button v-if="isOwnMessage" class="menu-action menu-action-delete" @click="confirmingDelete = true">
+                        <Trash2 :size="18" />
+                        <span>Delete message</span>
+                    </button>
+                </template>
+
+                <button class="menu-action menu-action-dismiss" @click="closeMenu">
+                    <span>Cancel</span>
+                </button>
+            </div>
+        </div>
+    </Teleport>
 </div>

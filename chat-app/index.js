@@ -18,6 +18,9 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  Reply,
+  Eye,
+  EyeOff,
 } from "lucide-vue-next";
 import { componentFromFolder } from "./components/component-loader.js";
 
@@ -54,7 +57,7 @@ const app = createApp(App)
   .use(router);
 
 // Register Lucide icons globally so any template can use them.
-const icons = { Plus, Send, Trash2, X, Crown, MessageCircle, User, LogOut, SettingsIcon, Users, Files, ChevronUp, ChevronLeft, ChevronRight };
+const icons = { Plus, Send, Trash2, X, Crown, MessageCircle, User, LogOut, SettingsIcon, Users, Files, ChevronUp, ChevronLeft, ChevronRight, Reply, Eye, EyeOff };
 for (const [name, component] of Object.entries(icons)) {
   app.component(name, component);
 }

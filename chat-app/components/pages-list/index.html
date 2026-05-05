@@ -1,11 +1,15 @@
 <div class="pages-overlay" @click.self="close()">
     <div class="pages-panel">
-        <header class="pages-header">
-            <button @click="close()" class="back-btn" aria-label="Close">
-                <ChevronUp :size="22" />
-            </button>
-            <h2>{{ chatTitle }}'s Pages</h2>
-        </header>
+        <div v-if="isPagesListLoading" class="loading-spinner-container">
+            <div class="loading-spinner"></div>
+        </div>
+        <template v-else>
+            <header class="pages-header">
+                <button @click="close()" class="back-btn" aria-label="Close">
+                    <ChevronUp :size="22" />
+                </button>
+                <h2>{{ chatTitle }}'s Pages</h2>
+            </header>
 
         <div v-if="!showCreateForm" class="pages-search-row">
             <div class="pages-search">
@@ -57,10 +61,7 @@
         </form>
 
         <div v-if="!showCreateForm" class="pages-container">
-            <div v-if="arePagesLoading" class="loading-spinner-container">
-                <div class="loading-spinner"></div>
-            </div>
-            <div v-else-if="filteredPages.length === 0" class="empty-state">
+            <div v-if="filteredPages.length === 0" class="empty-state">
                 <p v-if="searchQuery">No pages match your search.</p>
                 <p v-else>No pages yet. Create one to subdivide your chat.</p>
             </div>
@@ -104,5 +105,6 @@
                 </li>
             </ul>
         </div>
+        </template>
     </div>
 </div>

@@ -24,6 +24,7 @@ export default {
     const myMessage = ref("");
     const isSendingMessage = ref(false);
     const showMembersList = ref(false);
+    const replyingTo = ref(null);
 
     const chatIdRef = toRef(props, "chatId");
     const pageIdRef = toRef(props, "pageId");
@@ -39,7 +40,7 @@ export default {
     const isPageLoaded = ref(!!initialPage);
 
     // Discover messages in the page's channel
-    const { objects: messageObjects, isFirstPoll: areMessagesLoading } =
+    const { objects: messageObjects, isFirstPoll } =
       useGraffitiDiscover(
         computed(() => [pageIdRef.value]),
         {
@@ -109,18 +110,56 @@ export default {
       },
     );
 
+    // Cache for resolved handles
+    const handleCache = ref(new Map());
+    const pendingHandles = ref(new Set());
+    
+    // Resolve handle for an actor (with caching)
+    async function getActorHandle(actor) {
+      if (handleCache.value.has(actor)) {
+        return handleCache.value.get(actor);
+      }
+      if (pendingHandles.value.has(actor)) {
+        return null; // Already resolving
+      }
+      
+      pendingHandles.value.add(actor);
+      try {
+        const handle = await graffiti.actorToHandle(actor);
+        handleCache.value.set(actor, handle);
+        return handle;
+      } catch {
+        const fallback = actor.split(".")[0];
+        handleCache.value.set(actor, fallback);
+        return fallback;
+      } finally {
+        pendingHandles.value.delete(actor);
+      }
+    }
+    
     const actorDisplayNames = computed(() => {
       const map = new Map();
-      for (const profile of profileObjects.value) {
-        const latest = profileObjects.value
-          .filter((p) => p.actor === profile.actor)
+      for (const actor of uniqueActors.value) {
+        const profile = profileObjects.value
+          .filter((p) => p.actor === actor)
           .toSorted((a, b) => b.value.published - a.value.published)[0];
-        if (latest && latest.value.displayName) {
-          map.set(latest.actor, latest.value.displayName);
+        
+        if (profile?.value.displayName) {
+          map.set(actor, profile.value.displayName);
+        } else {
+          // Trigger handle resolution if not cached
+          if (!handleCache.value.has(actor)) {
+            getActorHandle(actor);
+          }
+          map.set(actor, handleCache.value.get(actor) || actor.split(".")[0]);
         }
       }
       return map;
     });
+    
+    const areMessagesLoading = computed(
+      () => (isFirstPoll.value && messageObjects.value.length === 0) || pendingHandles.value.size > 0,
+    );
 
     const enrichedMessages = computed(() =>
       sortedMessages.value.map((msg, index) => {
@@ -209,12 +248,14 @@ export default {
     const pageOwner = computed(() => pageOwnerRef.value);
     const parentChatTitle = computed(() => parentChatTitleRef.value);
 
-    // Mark all messages as read when component mounts or when new messages arrive
+    // Track in-flight posts to avoid duplicate read states from concurrent watchEffect firings
+    const pendingReadUrls = new Set();
+
     async function markMessagesAsRead() {
       if (!session.value?.actor || messageObjects.value.length === 0) return;
 
       const messagesToMarkRead = messageObjects.value.filter((msg) => {
-        // Check if current user has already marked this message as read
+        if (pendingReadUrls.has(msg.url)) return false;
         const hasReadState = readStateObjects.value.some(
           (rs) =>
             rs.value.messageUrl === msg.url &&
@@ -223,7 +264,9 @@ export default {
         return !hasReadState && msg.actor !== session.value.actor;
       });
 
-      // Post read states for unread messages
+      if (messagesToMarkRead.length === 0) return;
+      messagesToMarkRead.forEach((msg) => pendingReadUrls.add(msg.url));
+
       try {
         await Promise.all(
           messagesToMarkRead.map((msg) =>
@@ -244,6 +287,7 @@ export default {
         );
       } catch (err) {
         console.error("Error marking messages as read:", err);
+        messagesToMarkRead.forEach((msg) => pendingReadUrls.delete(msg.url));
       }
     }
 
@@ -259,25 +303,35 @@ export default {
       }
     });
 
+    function handleReply(replyInfo) {
+      replyingTo.value = replyInfo;
+    }
+
     async function sendMessage() {
       if (!myMessage.value.trim() || !pageIdRef.value) return;
 
       isSendingMessage.value = true;
       try {
+        const msgValue = {
+          activity: "Create",
+          type: "Message",
+          content: myMessage.value,
+          target: pageIdRef.value,
+          published: Date.now(),
+        };
+        if (replyingTo.value) {
+          msgValue.replyTo = {
+            url: replyingTo.value.url,
+            content: replyingTo.value.content,
+            actor: replyingTo.value.actor,
+          };
+        }
         await graffiti.post(
-          {
-            value: {
-              activity: "Create",
-              type: "Message",
-              content: myMessage.value,
-              target: pageIdRef.value,
-              published: Date.now(),
-            },
-            channels: [pageIdRef.value],
-          },
+          { value: msgValue, channels: [pageIdRef.value] },
           session.value,
         );
         myMessage.value = "";
+        replyingTo.value = null;
       } finally {
         isSendingMessage.value = false;
       }
@@ -299,8 +353,12 @@ export default {
       myMessage,
       isSendingMessage,
       showMembersList,
+      replyingTo,
       areMessagesLoading,
       enrichedMessages,
+      readStateObjects,
+      actorDisplayNames,
+      uniqueActors,
       pageTitle,
       pageOwner,
       parentChatTitle,
@@ -308,6 +366,7 @@ export default {
       chatId: chatIdRef,
       pageId: pageIdRef,
       sendMessage,
+      handleReply,
       back,
       getInitials,
     };
