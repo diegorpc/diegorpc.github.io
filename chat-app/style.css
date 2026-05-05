@@ -1251,6 +1251,24 @@ body {
     word-break: break-word;
     max-width: 70px;
     line-height: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+}
+
+.page-member-option:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
+.page-member-option:disabled:hover {
+    transform: none;
+}
+
+.page-member-option .owner-crown {
+    color: #ffd700;
+    flex-shrink: 0;
 }
 
 /* Page view header (nested chat under parent) */

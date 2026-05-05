@@ -42,11 +42,16 @@
                     type="button"
                     :class="['page-member-option', { selected: selectedMembers.has(member.actor) }]"
                     @click="toggleMember(member.actor)"
+                    :disabled="member.actor === $graffiti.session?.actor"
+                    :title="member.actor === $graffiti.session?.actor ? 'You are the page creator' : ''"
                 >
                     <div class="page-member-avatar">
                         <actor-avatar :photo-url="member.photoUrl" :initial="member.initial"></actor-avatar>
                     </div>
-                    <div class="page-member-name">{{ member.displayName || '...' }}</div>
+                    <div class="page-member-name">
+                        {{ member.displayName || '...' }}
+                        <Crown v-if="member.actor === $graffiti.session?.actor" :size="12" class="owner-crown" />
+                    </div>
                 </button>
             </div>
 

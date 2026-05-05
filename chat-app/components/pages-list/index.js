@@ -267,6 +267,7 @@ export default {
         displayName: actorDisplayNames.value.get(actor) || null,
         initial: getActorInitial(actor),
         photoUrl: actorPhotoUrls.value.get(actor) || null,
+        isOwner: actor === page.value.owner,
       }));
     }
 
@@ -298,6 +299,9 @@ export default {
     });
 
     function toggleMember(actor) {
+      // Prevent deselecting the current user (page creator)
+      if (actor === session.value?.actor) return;
+      
       const next = new Set(selectedMembers.value);
       if (next.has(actor)) next.delete(actor);
       else next.add(actor);
