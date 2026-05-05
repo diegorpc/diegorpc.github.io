@@ -4,6 +4,9 @@ import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
+import { componentFromFolder } from "../component-loader.js";
+
+const ActorAvatar = componentFromFolder("../actor-avatar", import.meta.url);
 
 const ADD_SCHEMA = {
   properties: {
@@ -59,6 +62,7 @@ function resolveActiveActors(addObjects, removeObjects, ownerActor) {
 }
 
 export default {
+  components: { ActorAvatar },
   props: {
     chatId:       { type: String, required: true },
     chatOwner:    { type: String, default: null },
@@ -168,6 +172,7 @@ export default {
         displayName,
         handle,
         label: shortLabel(displayName, handle),
+        photoUrl: profile?.value.icon || null,
         isCurrentUser: actor === session.value?.actor,
         isOwner: actor === props.chatOwner,
       };

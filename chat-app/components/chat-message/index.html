@@ -5,21 +5,32 @@
     @touchend="cancelLongPress"
     @touchmove="cancelLongPress"
 >
-    <div v-if="!isOwnMessage && isBlockStart" class="message-sender">
-        <span v-if="displayName" class="display-name">{{ displayName }}</span>
-        <span v-else class="actor-handle">
-            <graffiti-actor-to-handle :actor="message.actor"></graffiti-actor-to-handle>
-        </span>
-    </div>
-    <div class="message-bubble">
-        <div v-if="replyQuote" class="reply-quote">
-            <div class="reply-quote-author">
-                <span v-if="replyQuote.displayName">{{ replyQuote.displayName }}</span>
-                <graffiti-actor-to-handle v-else :actor="replyQuote.actor"></graffiti-actor-to-handle>
-            </div>
-            <div class="reply-quote-content">{{ replyQuote.content }}</div>
+    <div v-if="!isOwnMessage" class="msg-avatar-col">
+        <div v-if="isBlockEnd" class="msg-avatar">
+            <actor-avatar
+                :photo-url="senderPhotoUrl"
+                :initial="(displayName || '?').substring(0, 1).toUpperCase()"
+            ></actor-avatar>
         </div>
-        <div class="message-content">{{ message.value.content }}</div>
+    </div>
+
+    <div :class="{ 'msg-content-col': !isOwnMessage }">
+        <div v-if="!isOwnMessage && isBlockStart" class="message-sender">
+            <span v-if="displayName" class="display-name">{{ displayName }}</span>
+            <span v-else class="actor-handle">
+                <graffiti-actor-to-handle :actor="message.actor"></graffiti-actor-to-handle>
+            </span>
+        </div>
+        <div class="message-bubble">
+            <div v-if="replyQuote" class="reply-quote">
+                <div class="reply-quote-author">
+                    <span v-if="replyQuote.displayName">{{ replyQuote.displayName }}</span>
+                    <graffiti-actor-to-handle v-else :actor="replyQuote.actor"></graffiti-actor-to-handle>
+                </div>
+                <div class="reply-quote-content">{{ replyQuote.content }}</div>
+            </div>
+            <div class="message-content">{{ message.value.content }}</div>
+        </div>
     </div>
 
     <Teleport to="body">

@@ -8,6 +8,31 @@
             <div class="loading-spinner"></div>
         </div>
         <template v-else>
+            <div class="profile-photo-section">
+                <div class="profile-photo-circle">
+                    <img v-if="localPreviewUrl" class="profile-photo-img" :src="localPreviewUrl" />
+                    <graffiti-get-media v-else-if="iconUrl" :url="iconUrl" :accept="{ types: ['image/*'] }" v-slot="{ media }">
+                        <img v-if="media && media.dataUrl" class="profile-photo-img" :src="media.dataUrl" />
+                        <span v-else class="profile-photo-initial">{{ (displayName || '?').substring(0, 1).toUpperCase() }}</span>
+                    </graffiti-get-media>
+                    <span v-else class="profile-photo-initial">{{ (displayName || '?').substring(0, 1).toUpperCase() }}</span>
+                    <div v-if="isUploadingPhoto" class="profile-photo-uploading">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+                <label class="profile-photo-btn" for="profile-photo-input" :class="{ 'disabled': isUploadingPhoto }">
+                    {{ isUploadingPhoto ? 'Uploading...' : (iconUrl || localPreviewUrl ? 'Change photo' : 'Add photo') }}
+                </label>
+                <input
+                    id="profile-photo-input"
+                    type="file"
+                    accept="image/*"
+                    class="profile-photo-input-hidden"
+                    @change="handleFileSelect"
+                    :disabled="isUploadingPhoto"
+                />
+            </div>
+
             <div class="profile-field">
                 <label class="profile-label">Graffiti Actor</label>
                 <div class="profile-actor">{{ $graffitiSession.value?.actor }}</div>

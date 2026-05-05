@@ -19,7 +19,9 @@
                     class="member-tile"
                     :class="{ 'is-removing': removingActor === member.actor, 'is-adding': addingActor === member.actor }"
                 >
-                    <div class="member-avatar">{{ getInitial(member) }}</div>
+                    <div class="member-avatar">
+                        <actor-avatar :photo-url="member.photoUrl" :initial="getInitial(member)"></actor-avatar>
+                    </div>
                     <div class="member-name">
                         {{ member.label }}
                         <Crown v-if="member.isOwner" :size="12" class="owner-crown" />
@@ -82,7 +84,9 @@
                             class="page-member-option"
                             @click="addPageMember(member.actor); showInviteForm = false"
                         >
-                            <div class="page-member-avatar">{{ getInitial(member) }}</div>
+                            <div class="page-member-avatar">
+                                <actor-avatar :photo-url="member.photoUrl" :initial="getInitial(member)"></actor-avatar>
+                            </div>
                             <div class="page-member-name">{{ member.label }}</div>
                         </button>
                     </div>

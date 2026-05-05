@@ -12,7 +12,11 @@ export default {
 
     const displayName = ref("");
     const bio = ref("");
+    const iconUrl = ref("");
+    const selectedFile = ref(null);
+    const localPreviewUrl = ref(null);
     const isSavingProfile = ref(false);
+    const isUploadingPhoto = ref(false);
     const hasHydrated = ref(false);
 
     // Each user stores their profile in their own `${actor}/profile` channel.
@@ -54,36 +58,63 @@ export default {
         if (hasHydrated.value || !profile) return;
         displayName.value = profile.value.displayName ?? "";
         bio.value = profile.value.bio ?? "";
+        iconUrl.value = profile.value.icon ?? "";
         hasHydrated.value = true;
       },
       { immediate: true },
     );
 
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value);
+      selectedFile.value = file;
+      localPreviewUrl.value = URL.createObjectURL(file);
+    }
+
     async function saveProfile() {
       if (!session.value?.actor) return;
       isSavingProfile.value = true;
       try {
-        // Delete any previous profile objects so the latest one is unambiguous.
+        let newIconUrl = iconUrl.value;
+        if (selectedFile.value) {
+          isUploadingPhoto.value = true;
+          try {
+            newIconUrl = await graffiti.postMedia({ data: selectedFile.value }, session.value);
+            selectedFile.value = null;
+            if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value);
+            localPreviewUrl.value = null;
+          } finally {
+            isUploadingPhoto.value = false;
+          }
+        }
+
+        const profileValue = {
+          activity: "Update",
+          type: "Profile",
+          displayName: displayName.value,
+          bio: bio.value,
+          published: Date.now(),
+        };
+        if (newIconUrl) profileValue.icon = newIconUrl;
+
         const previous = profileObjects.value.filter(
           (o) => o.actor === session.value.actor,
-        );
-        await Promise.all(
-          previous.map((p) => graffiti.delete(p, session.value).catch(() => {})),
         );
 
         await graffiti.post(
           {
-            value: {
-              activity: "Update",
-              type: "Profile",
-              displayName: displayName.value,
-              bio: bio.value,
-              published: Date.now(),
-            },
+            value: profileValue,
             channels: [`${session.value.actor}/profile`],
           },
           session.value,
         );
+
+        await Promise.all(
+          previous.map((p) => graffiti.delete(p, session.value).catch(() => {})),
+        );
+
+        iconUrl.value = newIconUrl;
         hasHydrated.value = true;
       } finally {
         isSavingProfile.value = false;
@@ -99,8 +130,12 @@ export default {
     return {
       displayName,
       bio,
+      iconUrl,
+      localPreviewUrl,
       isSavingProfile,
+      isUploadingPhoto,
       isLoadingProfile,
+      handleFileSelect,
       saveProfile,
       logout,
     };

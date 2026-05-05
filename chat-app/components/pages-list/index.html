@@ -43,7 +43,9 @@
                     :class="['page-member-option', { selected: selectedMembers.has(member.actor) }]"
                     @click="toggleMember(member.actor)"
                 >
-                    <div class="page-member-avatar">{{ member.initial }}</div>
+                    <div class="page-member-avatar">
+                        <actor-avatar :photo-url="member.photoUrl" :initial="member.initial"></actor-avatar>
+                    </div>
                     <div class="page-member-name">{{ member.displayName || '...' }}</div>
                 </button>
             </div>
@@ -77,7 +79,9 @@
                             <div
                                 v-if="i < 5 || getPageMembers(page).length <= 6"
                                 class="page-member-chip"
-                            >{{ m.initial }}</div>
+                            >
+                                <actor-avatar :photo-url="m.photoUrl" :initial="m.initial"></actor-avatar>
+                            </div>
                         </template>
                         <div
                             v-if="getPageMembers(page).length > 6"

@@ -1,4 +1,4 @@
-import { ref, computed, toRef, watchEffect, watch, onMounted } from "vue";
+import { ref, computed, toRef, watchEffect, watch, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -28,6 +28,7 @@ export default {
     const showMembersList = ref(false);
     const showPagesList = ref(false);
     const replyingTo = ref(null);
+    const messagesContainer = ref(null);
 
     const chatIdRef = toRef(props, "chatId");
 
@@ -177,13 +178,26 @@ export default {
       return map;
     });
 
-    // Enrich messages with block start indicator
+    const actorPhotoUrls = computed(() => {
+      const map = new Map();
+      for (const actor of uniqueActors.value) {
+        const profile = profileObjects.value
+          .filter((p) => p.actor === actor)
+          .toSorted((a, b) => b.value.published - a.value.published)[0];
+        if (profile?.value.icon) map.set(actor, profile.value.icon);
+      }
+      return map;
+    });
+
+    // Enrich messages with block start/end indicators
     const enrichedMessages = computed(() =>
       sortedMessages.value.map((msg, index) => {
         const prevMsg = index > 0 ? sortedMessages.value[index - 1] : null;
+        const nextMsg = index < sortedMessages.value.length - 1 ? sortedMessages.value[index + 1] : null;
         const isBlockStart = !prevMsg || prevMsg.actor !== msg.actor;
+        const isBlockEnd = !nextMsg || nextMsg.actor !== msg.actor;
         const displayName = actorDisplayNames.value.get(msg.actor) || null;
-        return { message: msg, isBlockStart, displayName };
+        return { message: msg, isBlockStart, isBlockEnd, displayName };
       }),
     );
 
@@ -303,6 +317,25 @@ export default {
       replyingTo.value = replyInfo;
     }
 
+    const shouldScrollOnNextUpdate = ref(false);
+
+    function scrollToBottom() {
+      if (messagesContainer.value) {
+        setTimeout(() => {
+          if (messagesContainer.value) {
+            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+          }
+        }, 100);
+      }
+    }
+
+    watchEffect(() => {
+      if (shouldScrollOnNextUpdate.value && enrichedMessages.value.length > 0) {
+        scrollToBottom();
+        shouldScrollOnNextUpdate.value = false;
+      }
+    });
+
     async function sendMessage() {
       if (!myMessage.value.trim() || !chatIdRef.value) return;
 
@@ -328,6 +361,7 @@ export default {
         );
         myMessage.value = "";
         replyingTo.value = null;
+        shouldScrollOnNextUpdate.value = true;
       } finally {
         isSendingMessage.value = false;
       }
@@ -356,11 +390,13 @@ export default {
       chatOwner,
       isChatLoaded,
       chatId: chatIdRef,
+      actorPhotoUrls,
       sendMessage,
       handleReply,
       back,
       getInitials,
       hasPageNotifications,
+      messagesContainer,
     };
   },
 };

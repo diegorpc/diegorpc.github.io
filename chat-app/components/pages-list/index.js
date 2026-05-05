@@ -8,9 +8,10 @@ import {
 import { componentFromFolder } from "../component-loader.js";
 
 const NotificationBadge = componentFromFolder("../notification-badge", import.meta.url);
+const ActorAvatar = componentFromFolder("../actor-avatar", import.meta.url);
 
 export default {
-  components: { NotificationBadge },
+  components: { NotificationBadge, ActorAvatar },
   props: {
     chatId: { type: String, required: true },
     chatTitle: { type: String, default: "" },
@@ -226,6 +227,17 @@ export default {
       return (name || "?").substring(0, 1).toUpperCase();
     }
 
+    const actorPhotoUrls = computed(() => {
+      const map = new Map();
+      for (const actor of allActors.value) {
+        const profile = profileObjects.value
+          .filter((p) => p.actor === actor)
+          .toSorted((a, b) => b.value.published - a.value.published)[0];
+        if (profile?.value.icon) map.set(actor, profile.value.icon);
+      }
+      return map;
+    });
+
     // Compute latest message per page
     const pageLatestMessages = computed(() => {
       const map = new Map();
@@ -254,6 +266,7 @@ export default {
         actor,
         displayName: actorDisplayNames.value.get(actor) || null,
         initial: getActorInitial(actor),
+        photoUrl: actorPhotoUrls.value.get(actor) || null,
       }));
     }
 
@@ -263,6 +276,7 @@ export default {
         actor,
         displayName: actorDisplayNames.value.get(actor) || null,
         initial: getActorInitial(actor),
+        photoUrl: actorPhotoUrls.value.get(actor) || null,
       })),
     );
 

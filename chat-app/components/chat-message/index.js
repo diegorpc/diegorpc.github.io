@@ -3,18 +3,24 @@ import {
   useGraffiti,
   useGraffitiSession,
 } from "@graffiti-garden/wrapper-vue";
+import { componentFromFolder } from "../component-loader.js";
+
+const ActorAvatar = componentFromFolder("../actor-avatar", import.meta.url);
 
 const MENU_WIDTH = 240;
 const MENU_MARGIN = 8;
 const MIN_SPACE_BELOW = 200;
 
 export default {
+  components: { ActorAvatar },
   props: {
     message: { type: Object, required: true },
     isBlockStart: { type: Boolean, default: false },
+    isBlockEnd: { type: Boolean, default: false },
     displayName: { type: String, default: null },
     readStateObjects: { type: Array, default: () => [] },
     actorDisplayNames: { type: Object, default: () => new Map() },
+    actorPhotoUrls: { type: Object, default: () => new Map() },
     messageActors: { type: Array, default: () => [] },
   },
   emits: ["reply"],
@@ -32,6 +38,11 @@ export default {
     const isOwnMessage = computed(
       () => props.message.actor === session.value?.actor,
     );
+
+    const senderPhotoUrl = computed(() => {
+      const urls = props.actorPhotoUrls;
+      return (urls instanceof Map ? urls.get(props.message.actor) : null) ?? null;
+    });
 
     // Deduplicated read states for this message — keep oldest per reader (= first read time)
     const messageReadStates = computed(() => {
@@ -215,6 +226,7 @@ export default {
 
     return {
       isOwnMessage,
+      senderPhotoUrl,
       isDeleting,
       confirmingDelete,
       showMenu,

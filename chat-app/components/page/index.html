@@ -27,7 +27,7 @@
         @close="showMembersList = false"
     ></members-list>
 
-    <div class="messages-container">
+    <div class="messages-container" ref="messagesContainer">
         <div v-if="areMessagesLoading" class="loading-spinner-container">
             <div class="loading-spinner"></div>
         </div>
@@ -40,9 +40,11 @@
                 :key="item.message.url"
                 :message="item.message"
                 :is-block-start="item.isBlockStart"
+                :is-block-end="item.isBlockEnd"
                 :display-name="item.displayName"
                 :read-state-objects="readStateObjects"
                 :actor-display-names="actorDisplayNames"
+                :actor-photo-urls="actorPhotoUrls"
                 :message-actors="uniqueActors"
                 @reply="handleReply"
             ></chat-message>
