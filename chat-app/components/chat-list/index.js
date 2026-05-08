@@ -243,7 +243,10 @@ export default {
 
     // Get unique actors from all messages to fetch their profiles
     const uniqueActors = computed(() => [
-      ...new Set(allMessageObjects.value.map((m) => m.actor)),
+      ...new Set([
+        ...allMessageObjects.value.map((m) => m.actor),
+        ...allPageMessageObjects.value.map((m) => m.actor),
+      ]),
     ]);
 
     const { objects: profileObjects } = useGraffitiDiscover(

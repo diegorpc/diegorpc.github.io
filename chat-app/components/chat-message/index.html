@@ -128,7 +128,7 @@
                         <Bookmark :size="18" />
                         <span>Bookmark</span>
                     </button>
-                    <button v-else class="menu-action menu-action-unbookmark" @click="handleUnbookmark">
+                    <button v-else class="menu-action menu-action-unbookmark" @click="handleUnbookmark" :disabled="!isOwnBookmark">
                         <BookmarkCheck :size="18" />
                         <span>Remove bookmark</span>
                     </button>

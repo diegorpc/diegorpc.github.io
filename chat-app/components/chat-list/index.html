@@ -55,10 +55,13 @@
                     </div>
                 </div>
                 <div class="chat-meta">
-                    <div class="chat-time">
-                        {{ getLatestMessageInfo(chat)
-                            ? formatTimeSince(getLatestMessageInfo(chat).message.value.published)
-                            : formatTimeSince(chat.value.published) }}
+                    <div class="chat-meta-top">
+                        <NotificationBadge :count="getUnreadCount(chat)" />
+                        <div class="chat-time">
+                            {{ getLatestMessageInfo(chat)
+                                ? formatTimeSince(getLatestMessageInfo(chat).message.value.published)
+                                : formatTimeSince(chat.value.published) }}
+                        </div>
                     </div>
                     <div class="chat-counts">
                         <span v-if="getPageCount(chat) > 0" class="chat-count-meta">
@@ -68,7 +71,6 @@
                             <Bookmark :size="10" />{{ getBookmarkCount(chat) }}
                         </span>
                     </div>
-                    <NotificationBadge :count="getUnreadCount(chat)" />
                 </div>
                 <div class="chat-arrow">
                     <ChevronRight :size="20" :color="'var(--accent-primary)'" />

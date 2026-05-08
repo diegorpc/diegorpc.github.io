@@ -40,6 +40,10 @@ export default {
       () => props.message.actor === session.value?.actor,
     );
 
+    const isOwnBookmark = computed(
+      () => !!props.bookmarkObject && props.bookmarkObject.actor === session.value?.actor,
+    );
+
     const senderPhotoUrl = computed(() => {
       const urls = props.actorPhotoUrls;
       return (urls instanceof Map ? urls.get(props.message.actor) : null) ?? null;
@@ -248,6 +252,7 @@ export default {
 
     return {
       isOwnMessage,
+      isOwnBookmark,
       senderPhotoUrl,
       isDeleting,
       confirmingDelete,

@@ -107,15 +107,17 @@
                         </div>
                     </div>
                     <div class="page-meta">
-                        <div class="page-time">
-                            {{ getLatestMessageInfo(page)
-                                ? formatTimeSince(getLatestMessageInfo(page).message.value.published)
-                                : formatTimeSince(page.value.published) }}
+                        <div class="chat-meta-top">
+                            <NotificationBadge :count="getUnreadCount(page)" />
+                            <div class="page-time">
+                                {{ getLatestMessageInfo(page)
+                                    ? formatTimeSince(getLatestMessageInfo(page).message.value.published)
+                                    : formatTimeSince(page.value.published) }}
+                            </div>
                         </div>
                         <span v-if="getBookmarkCount(page) > 0" class="chat-count-meta">
                             <Bookmark :size="10" />{{ getBookmarkCount(page) }}
                         </span>
-                        <NotificationBadge :count="getUnreadCount(page)" />
                     </div>
                 </li>
             </ul>

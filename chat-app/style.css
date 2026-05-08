@@ -292,6 +292,12 @@ body {
     font-size: 0.75rem;
 }
 
+.chat-meta-top {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
 .chat-counts {
     display: flex;
     gap: 0.25rem;
