@@ -172,7 +172,7 @@ export default {
     const hasScrolledOnMount = ref(false);
     
     const areMessagesLoading = computed(
-      () => (isFirstPoll.value && messageObjects.value.length === 0) || pendingHandles.value.size > 0,
+      () => (!hasScrolledOnMount.value && isFirstPoll.value && messageObjects.value.length === 0) || pendingHandles.value.size > 0,
     );
 
     const actorPhotoUrls = computed(() => {
