@@ -1,0 +1,92 @@
+<div class="settings-overlay" :class="{ 'is-closing': closing }" @click.self="close()">
+    <div class="settings-panel" :class="{ 'is-closing': closing }">
+        <header class="pages-header">
+            <button @click="close()" class="back-btn" aria-label="Close">
+                <ChevronUp :size="22" />
+            </button>
+            <h2>Chat Settings</h2>
+        </header>
+
+        <form @submit.prevent="isOwner && save()" class="settings-form">
+            <div class="profile-photo-section" :class="{ 'read-only': !isOwner }">
+                <div class="profile-photo-wrapper">
+                    <div class="profile-photo-circle">
+                        <img v-if="localPreviewUrl && !shouldRemovePhoto" class="profile-photo-img" :src="localPreviewUrl" />
+                        <avatar v-else-if="!shouldRemovePhoto" :icon-url="iconUrl" :title="title"></avatar>
+                        <avatar v-else :title="title"></avatar>
+                        <div v-if="isUploadingPhoto" class="profile-photo-uploading">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                    <button 
+                        v-if="isOwner && (iconUrl || localPreviewUrl) && !shouldRemovePhoto" 
+                        type="button"
+                        @click="removePhoto" 
+                        class="profile-photo-remove-btn"
+                        :disabled="isUploadingPhoto"
+                        title="Remove photo"
+                    >
+                        <X :size="16" />
+                    </button>
+                </div>
+                <label v-if="isOwner" class="profile-photo-btn" for="chat-photo-input" :class="{ 'disabled': isUploadingPhoto }">
+                    {{ isUploadingPhoto ? 'Uploading...' : (iconUrl || localPreviewUrl ? 'Change image' : 'Add image') }}
+                </label>
+                <input
+                    v-if="isOwner"
+                    id="chat-photo-input"
+                    type="file"
+                    accept="image/*"
+                    class="profile-photo-input-hidden"
+                    @change="handleFileSelect"
+                    :disabled="isUploadingPhoto"
+                />
+            </div>
+
+            <div class="profile-field">
+                <label class="profile-label" for="chat-title">Chat Name</label>
+                <input
+                    id="chat-title"
+                    type="text"
+                    v-model="title"
+                    placeholder="Chat name"
+                    class="chat-title-input"
+                    :disabled="!isOwner"
+                    required
+                />
+            </div>
+
+            <div class="profile-field">
+                <label class="profile-label" for="chat-description">Description</label>
+                <textarea
+                    id="chat-description"
+                    v-model="description"
+                    placeholder="What is this chat about?"
+                    class="chat-title-input"
+                    :disabled="!isOwner"
+                    rows="3"
+                ></textarea>
+            </div>
+
+            <div v-if="isOwner" class="form-actions">
+                <button type="button" @click="close()" class="cancel-btn">
+                    Cancel
+                </button>
+                <button type="submit" :disabled="isSaving || !hasChanges" class="create-btn">
+                    {{ isSaving ? 'Saving...' : 'Save Changes' }}
+                </button>
+            </div>
+
+            <button 
+                v-if="isOwner"
+                type="button" 
+                @click="handleDeleteClick()" 
+                :disabled="isDeleting"
+                class="delete-chat-btn"
+            >
+                <Trash2 :size="18" />
+                {{ deleteButtonText }}
+            </button>
+        </form>
+    </div>
+</div>

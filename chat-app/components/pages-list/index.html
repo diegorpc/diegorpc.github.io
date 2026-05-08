@@ -1,5 +1,5 @@
-<div class="pages-overlay" @click.self="close()">
-    <div class="pages-panel">
+<div class="pages-overlay" :class="{ 'is-closing': closing }" @click.self="close()">
+    <div class="pages-panel" :class="{ 'is-closing': closing }">
         <div v-if="isPagesListLoading" class="loading-spinner-container">
             <div class="loading-spinner"></div>
         </div>
@@ -46,10 +46,10 @@
                     :title="member.actor === $graffiti.session?.actor ? 'You are the page creator' : ''"
                 >
                     <div class="page-member-avatar">
-                        <actor-avatar :photo-url="member.photoUrl" :initial="member.initial"></actor-avatar>
+                        <avatar :photo-url="member.photoUrl" :initial="member.initial"></avatar>
                     </div>
                     <div class="page-member-name">
-                        {{ member.displayName || '...' }}
+                        {{ member.displayName || member.actor.split('.')[0] }}
                         <Crown v-if="member.actor === $graffiti.session?.actor" :size="12" class="owner-crown" />
                     </div>
                 </button>
@@ -79,13 +79,16 @@
                     @click="openPage(page)"
                     class="page-item"
                 >
-                    <div class="page-members-stack">
+                    <div class="page-icon-container">
+                        <avatar :icon-url="page.value.icon" :title="page.value.title"></avatar>
+                    </div>
+                    <div class="page-members-grid">
                         <template v-for="(m, i) in getPageMembers(page).slice(0, 6)" :key="m.actor">
                             <div
                                 v-if="i < 5 || getPageMembers(page).length <= 6"
                                 class="page-member-chip"
                             >
-                                <actor-avatar :photo-url="m.photoUrl" :initial="m.initial"></actor-avatar>
+                                <avatar :photo-url="m.photoUrl" :initial="m.initial"></avatar>
                             </div>
                         </template>
                         <div

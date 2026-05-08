@@ -1,7 +1,8 @@
-<div class="members-overlay" @click.self="$emit('close')">
-    <div class="members-panel">
+<div class="members-overlay" :class="{ 'is-closing': closing }" @click.self="handleClose()">
+    <user-profile v-if="viewingActor" :actor="viewingActor" @close="viewingActor = null"></user-profile>
+    <div class="members-panel" :class="{ 'is-closing': closing }">
         <header class="members-header">
-            <button @click="$emit('close')" class="back-btn" aria-label="Close">
+            <button @click="handleClose()" class="back-btn" aria-label="Close">
                 <ChevronUp :size="22" />
             </button>
             <h2>Members</h2>
@@ -16,11 +17,12 @@
                 <div
                     v-for="member in members"
                     :key="member.actor"
-                    class="member-tile"
+                    class="member-tile member-tile-clickable"
                     :class="{ 'is-removing': removingActor === member.actor, 'is-adding': addingActor === member.actor }"
+                    @click="openUserProfile(member.actor)"
                 >
                     <div class="member-avatar">
-                        <actor-avatar :photo-url="member.photoUrl" :initial="getInitial(member)"></actor-avatar>
+                        <avatar :photo-url="member.photoUrl" :initial="getInitial(member)"></avatar>
                     </div>
                     <div class="member-name">
                         {{ member.label }}
@@ -29,7 +31,7 @@
                     <template v-if="isOwner && !member.isOwner">
                         <button
                             v-if="confirmingRemove !== member.actor"
-                            @click="confirmingRemove = member.actor"
+                            @click.stop="confirmingRemove = member.actor"
                             class="remove-member-btn"
                             :disabled="!!removingActor"
                             :aria-label="`Remove ${member.label}`"
@@ -37,7 +39,7 @@
                         >
                             <X :size="14" />
                         </button>
-                        <div v-else class="remove-member-confirm">
+                        <div v-else class="remove-member-confirm" @click.stop>
                             <button
                                 @click="confirmingRemove = null"
                                 class="remove-cancel-btn"
@@ -85,7 +87,7 @@
                             @click="addPageMember(member.actor); showInviteForm = false"
                         >
                             <div class="page-member-avatar">
-                                <actor-avatar :photo-url="member.photoUrl" :initial="getInitial(member)"></actor-avatar>
+                                <avatar :photo-url="member.photoUrl" :initial="getInitial(member)"></avatar>
                             </div>
                             <div class="page-member-name">{{ member.label }}</div>
                         </button>

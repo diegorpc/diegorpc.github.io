@@ -11,6 +11,7 @@ export default {
     const session = useGraffitiSession();
 
     const showMessagePreview = ref(true);
+    const reduceMotion = ref(false);
     const isHydrated = ref(false);
 
     // Discover user settings from their profile channel
@@ -37,6 +38,7 @@ export default {
         .toSorted((a, b) => b.value.published - a.value.published)[0];
       if (latest) {
         showMessagePreview.value = latest.value.showMessagePreview ?? true;
+        reduceMotion.value = latest.value.reduceMotion ?? false;
       }
       if (!isFirstPoll.value && !isHydrated.value) {
         nextTick(() => {
@@ -65,6 +67,7 @@ export default {
             activity: "Update",
             type: "Settings",
             showMessagePreview: showMessagePreview.value,
+            reduceMotion: reduceMotion.value,
             published: Date.now(),
           },
           channels: [`${session.value.actor}/settings`],
@@ -75,6 +78,7 @@ export default {
 
     return {
       showMessagePreview,
+      reduceMotion,
       isHydrated,
       saveSetting,
     };

@@ -9,9 +9,13 @@ import { componentFromFolder } from "../component-loader.js";
 
 const ChatMessage = componentFromFolder("../chat-message", import.meta.url);
 const MembersList = componentFromFolder("../members-list", import.meta.url);
+const PageSettings = componentFromFolder("../page-settings", import.meta.url);
+const BookmarksList = componentFromFolder("../bookmarks-list", import.meta.url);
+const Avatar = componentFromFolder("../avatar", import.meta.url);
+const UserProfile = componentFromFolder("../user-profile", import.meta.url);
 
 export default {
-  components: { ChatMessage, MembersList },
+  components: { ChatMessage, MembersList, PageSettings, BookmarksList, Avatar, UserProfile },
   props: {
     chatId: { type: String, required: true },
     pageId: { type: String, required: true },
@@ -24,8 +28,12 @@ export default {
     const myMessage = ref("");
     const isSendingMessage = ref(false);
     const showMembersList = ref(false);
+    const showPageSettings = ref(false);
+    const showBookmarksList = ref(false);
+    const profileActor = ref(null);
     const replyingTo = ref(null);
     const messagesContainer = ref(null);
+    const messageInput = ref(null);
 
     const chatIdRef = toRef(props, "chatId");
     const pageIdRef = toRef(props, "pageId");
@@ -37,6 +45,8 @@ export default {
 
     const pageTitleRef = ref(initialPage?.title || "");
     const pageOwnerRef = ref(initialPage?.owner || null);
+    const pageIconRef = ref(initialPage?.icon || "");
+    const pageDescriptionRef = ref(initialPage?.description || "");
     const parentChatTitleRef = ref(initialParentTitle);
     const isPageLoaded = ref(!!initialPage);
 
@@ -114,16 +124,10 @@ export default {
     // Cache for resolved handles
     const handleCache = ref(new Map());
     const pendingHandles = ref(new Set());
-    
-    // Resolve handle for an actor (with caching)
+
     async function getActorHandle(actor) {
-      if (handleCache.value.has(actor)) {
-        return handleCache.value.get(actor);
-      }
-      if (pendingHandles.value.has(actor)) {
-        return null; // Already resolving
-      }
-      
+      if (handleCache.value.has(actor)) return handleCache.value.get(actor);
+      if (pendingHandles.value.has(actor)) return null;
       pendingHandles.value.add(actor);
       try {
         const handle = await graffiti.actorToHandle(actor);
@@ -137,26 +141,35 @@ export default {
         pendingHandles.value.delete(actor);
       }
     }
-    
+
+    // Eagerly kick off handle resolution whenever the actor set changes.
+    // Runs pre-render so pendingHandles is non-empty before areMessagesLoading
+    // is evaluated, preventing any frame where messages render without names.
+    watchEffect(() => {
+      for (const actor of uniqueActors.value) {
+        if (!handleCache.value.has(actor) && !pendingHandles.value.has(actor)) {
+          getActorHandle(actor);
+        }
+      }
+    });
+
     const actorDisplayNames = computed(() => {
       const map = new Map();
       for (const actor of uniqueActors.value) {
         const profile = profileObjects.value
           .filter((p) => p.actor === actor)
           .toSorted((a, b) => b.value.published - a.value.published)[0];
-        
         if (profile?.value.displayName) {
           map.set(actor, profile.value.displayName);
         } else {
-          // Trigger handle resolution if not cached
-          if (!handleCache.value.has(actor)) {
-            getActorHandle(actor);
-          }
+          if (!handleCache.value.has(actor)) getActorHandle(actor);
           map.set(actor, handleCache.value.get(actor) || actor.split(".")[0]);
         }
       }
       return map;
     });
+    
+    const hasScrolledOnMount = ref(false);
     
     const areMessagesLoading = computed(
       () => (isFirstPoll.value && messageObjects.value.length === 0) || pendingHandles.value.size > 0,
@@ -182,6 +195,51 @@ export default {
         const displayName = actorDisplayNames.value.get(msg.actor) || null;
         return { message: msg, isBlockStart, isBlockEnd, displayName };
       }),
+    );
+
+    // Discover per-user dismiss timestamps for bookmarks in this page
+    const { objects: dismissObjects, isFirstPoll: isDismissLoading } = useGraffitiDiscover(
+      computed(() =>
+        session.value?.actor
+          ? [`${session.value.actor}/${pageIdRef.value}/bookmark-dismiss`]
+          : [],
+      ),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "dismissedAt"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "BookmarkDismiss" },
+              dismissedAt: { type: "number" },
+            },
+          },
+        },
+      },
+    );
+
+    const dismissedAt = computed(() =>
+      dismissObjects.value.length === 0
+        ? 0
+        : Math.max(...dismissObjects.value.map((d) => d.value.dismissedAt)),
+    );
+
+    // Discover bookmarks shared across all members of this page
+    const { objects: bookmarkObjects } = useGraffitiDiscover(
+      computed(() => [`${pageIdRef.value}/bookmarks`]),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "messageUrl", "bookmarkedAt"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Bookmark" },
+              messageUrl: { type: "string" },
+              bookmarkedAt: { type: "number" },
+            },
+          },
+        },
+      },
     );
 
     // Fallback discovery for page metadata (on direct navigation/refresh)
@@ -217,6 +275,8 @@ export default {
       if (match?.value.title) {
         pageTitleRef.value = match.value.title;
         pageOwnerRef.value = match.value.owner || null;
+        pageIconRef.value = match.value.icon || "";
+        pageDescriptionRef.value = match.value.description || "";
         isPageLoaded.value = true;
       }
     });
@@ -260,6 +320,8 @@ export default {
 
     const pageTitle = computed(() => pageTitleRef.value);
     const pageOwner = computed(() => pageOwnerRef.value);
+    const pageIcon = computed(() => pageIconRef.value);
+    const pageDescription = computed(() => pageDescriptionRef.value);
     const parentChatTitle = computed(() => parentChatTitleRef.value);
 
     // Track in-flight posts to avoid duplicate read states from concurrent watchEffect firings
@@ -305,9 +367,21 @@ export default {
       }
     }
 
-    // Mark messages as read when component mounts and when messages change
+    // Scroll to bottom on mount when messages are loaded
     onMounted(() => {
       markMessagesAsRead();
+    });
+
+    // Watch for initial messages load and scroll to bottom
+    watchEffect(() => {
+      if (!hasScrolledOnMount.value && !isFirstPoll.value && enrichedMessages.value.length > 0) {
+        nextTick(() => {
+          if (messagesContainer.value) {
+            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+            hasScrolledOnMount.value = true;
+          }
+        });
+      }
     });
 
     watchEffect(() => {
@@ -319,6 +393,10 @@ export default {
 
     function handleReply(replyInfo) {
       replyingTo.value = replyInfo;
+    }
+
+    function openUserProfile(actor) {
+      profileActor.value = actor;
     }
 
     const shouldScrollOnNextUpdate = ref(false);
@@ -368,6 +446,7 @@ export default {
         shouldScrollOnNextUpdate.value = true;
       } finally {
         isSendingMessage.value = false;
+        nextTick(() => messageInput.value?.focus());
       }
     }
 
@@ -383,11 +462,158 @@ export default {
       return (title || "?").substring(0, 2).toUpperCase();
     }
 
+    function handlePageSettingsUpdated(data) {
+      pageTitleRef.value = data.title;
+      pageIconRef.value = data.icon;
+      pageDescriptionRef.value = data.description;
+    }
+
+    // Bookmarks visible to this user (posted after their last dismiss).
+    // Return empty until the dismiss poll completes so we never flash dismissed bookmarks.
+    const visibleBookmarkObjects = computed(() => {
+      if (isDismissLoading.value) return [];
+      return bookmarkObjects.value.filter(
+        (bm) => bm.value.bookmarkedAt > dismissedAt.value,
+      );
+    });
+
+    // Map messageUrl -> most recent bookmark object for that message (all bookmarks, dismiss does not affect the bubble indicator)
+    const bookmarksByUrl = computed(() => {
+      const map = new Map();
+      for (const bm of bookmarkObjects.value) {
+        const existing = map.get(bm.value.messageUrl);
+        if (!existing || bm.value.bookmarkedAt > existing.value.bookmarkedAt) {
+          map.set(bm.value.messageUrl, bm);
+        }
+      }
+      return map;
+    });
+
+    const latestBookmark = computed(() => {
+      if (visibleBookmarkObjects.value.length === 0) return null;
+      return visibleBookmarkObjects.value.toSorted(
+        (a, b) => b.value.bookmarkedAt - a.value.bookmarkedAt,
+      )[0];
+    });
+
+    const stickyBookmarkedMessage = computed(() => {
+      if (!latestBookmark.value) return null;
+      return (
+        messageObjects.value.find(
+          (m) => m.url === latestBookmark.value.value.messageUrl,
+        ) || null
+      );
+    });
+
+    const stickyDisplayName = computed(() => {
+      if (!stickyBookmarkedMessage.value) return null;
+      return actorDisplayNames.value.get(stickyBookmarkedMessage.value.actor) ?? null;
+    });
+
+    const enrichedBookmarks = computed(() =>
+      bookmarkObjects.value
+        .toSorted((a, b) => b.value.bookmarkedAt - a.value.bookmarkedAt)
+        .map((bm) => {
+          const message = messageObjects.value.find(
+            (m) => m.url === bm.value.messageUrl,
+          );
+          const actor = message?.actor || bm.value.messageActor;
+          return {
+            bookmarkObject: bm,
+            message,
+            senderName: actor ? actorDisplayNames.value.get(actor) || null : null,
+            content: message?.value.content || bm.value.messageContent || "",
+            bookmarkedAt: bm.value.bookmarkedAt,
+            messageUrl: bm.value.messageUrl,
+          };
+        }),
+    );
+
+    async function dismissBookmarks() {
+      if (!session.value?.actor) return;
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "Create",
+              type: "BookmarkDismiss",
+              channelId: pageIdRef.value,
+              dismissedAt: Date.now(),
+            },
+            channels: [
+              `${session.value.actor}/${pageIdRef.value}/bookmark-dismiss`,
+            ],
+          },
+          session.value,
+        );
+      } catch (err) {
+        console.error("Error dismissing bookmarks:", err);
+      }
+    }
+
+    async function handleBookmark(message) {
+      if (!session.value?.actor) return;
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "Create",
+              type: "Bookmark",
+              messageUrl: message.url,
+              messageContent: message.value.content,
+              messageActor: message.actor,
+              channelId: pageIdRef.value,
+              bookmarkedAt: Date.now(),
+            },
+            channels: [`${pageIdRef.value}/bookmarks`],
+          },
+          session.value,
+        );
+      } catch (err) {
+        console.error("Error bookmarking:", err);
+      }
+    }
+
+    async function handleUnbookmark(bookmarkObject) {
+      if (!session.value?.actor) return;
+      try {
+        await graffiti.delete(bookmarkObject, session.value);
+      } catch (err) {
+        console.error("Error removing bookmark:", err);
+      }
+    }
+
+    function scrollToMessage(messageUrl) {
+      if (!messagesContainer.value) return;
+      showBookmarksList.value = false;
+      nextTick(() => {
+        const els =
+          messagesContainer.value?.querySelectorAll("[data-message-url]");
+        if (!els) return;
+        for (const el of els) {
+          if (el.dataset.messageUrl === messageUrl) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            break;
+          }
+        }
+      });
+    }
+
     return {
       myMessage,
       isSendingMessage,
       showMembersList,
+      showBookmarksList,
+      profileActor,
       replyingTo,
+      bookmarksByUrl,
+      stickyBookmarkedMessage,
+      stickyDisplayName,
+      enrichedBookmarks,
+      handleBookmark,
+      handleUnbookmark,
+      dismissBookmarks,
+      scrollToMessage,
       areMessagesLoading,
       enrichedMessages,
       readStateObjects,
@@ -395,16 +621,23 @@ export default {
       uniqueActors,
       pageTitle,
       pageOwner,
+      pageIcon,
+      pageDescription,
       parentChatTitle,
       isPageLoaded,
       chatId: chatIdRef,
       pageId: pageIdRef,
       actorPhotoUrls,
+      showPageSettings,
       sendMessage,
       handleReply,
+      openUserProfile,
+      handlePageSettingsUpdated,
       back,
       getInitials,
       messagesContainer,
+      messageInput,
+      hasScrolledOnMount,
     };
   },
 };

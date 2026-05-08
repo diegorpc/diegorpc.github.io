@@ -1,0 +1,5 @@
+<graffiti-get-media v-if="imageUrl" :url="imageUrl" :accept="{ types: ['image/*'] }" v-slot="{ media }">
+  <img v-if="media && media.dataUrl" class="avatar-img" :src="media.dataUrl" />
+  <span v-else class="avatar-loading"></span>
+</graffiti-get-media>
+<span v-else class="avatar-fallback">{{ fallbackText }}</span>

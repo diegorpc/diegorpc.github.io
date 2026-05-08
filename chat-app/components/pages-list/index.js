@@ -1,4 +1,4 @@
-import { ref, computed, toRef, watchEffect } from "vue";
+import { ref, computed, toRef, watch, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -8,10 +8,10 @@ import {
 import { componentFromFolder } from "../component-loader.js";
 
 const NotificationBadge = componentFromFolder("../notification-badge", import.meta.url);
-const ActorAvatar = componentFromFolder("../actor-avatar", import.meta.url);
+const Avatar = componentFromFolder("../avatar", import.meta.url);
 
 export default {
-  components: { NotificationBadge, ActorAvatar },
+  components: { NotificationBadge, Avatar },
   props: {
     chatId: { type: String, required: true },
     chatTitle: { type: String, default: "" },
@@ -98,18 +98,13 @@ export default {
       true,
     );
 
-    // Combined loading state - don't show pages until chat title, messages, and handles are ready
-    const isPagesListLoading = computed(() =>
-      !chatTitleRef.value || arePagesLoading.value || arePageMessagesLoading.value || pendingHandles.value.size > 0,
-    );
-
     // Discover read states for all page messages
     const pageMessageUrls = computed(() => pageMessageObjects.value.map((m) => m.url));
     const readStateChannels = computed(() =>
       pageMessageUrls.value.map((url) => `${url}/read-by`),
     );
 
-    const { objects: readStateObjects } = useGraffitiDiscover(
+    const { objects: readStateObjects, isFirstPoll: areReadStatesLoading } = useGraffitiDiscover(
       readStateChannels,
       {
         properties: {
@@ -125,6 +120,35 @@ export default {
           },
         },
       },
+      undefined,
+      true,
+    );
+
+    // isFirstPoll for read states may not reset when channels change from [] to non-empty,
+    // leaving a window where the list renders before read state data has arrived.
+    const waitingForReadStates = ref(false);
+    watch(readStateChannels, (newChannels, oldChannels) => {
+      if (newChannels.length > 0 && (!oldChannels || oldChannels.length === 0)) {
+        waitingForReadStates.value = true;
+      } else if (newChannels.length === 0) {
+        waitingForReadStates.value = false;
+      }
+    });
+    watch(areReadStatesLoading, (loading) => {
+      if (!loading) waitingForReadStates.value = false;
+    });
+    watch(readStateObjects, () => {
+      if (readStateChannels.value.length > 0) waitingForReadStates.value = false;
+    });
+
+    // Combined loading state - don't show pages until chat title, messages, and handles are ready
+    const isPagesListLoading = computed(() =>
+      !chatTitleRef.value ||
+      arePagesLoading.value ||
+      arePageMessagesLoading.value ||
+      areReadStatesLoading.value ||
+      waitingForReadStates.value ||
+      pendingHandles.value.size > 0,
     );
 
     // Discover parent chat members
@@ -383,6 +407,13 @@ export default {
       }
     }
 
+    const closing = ref(false);
+    function handleClose() {
+      if (closing.value) return;
+      closing.value = true;
+      setTimeout(() => emit("close"), 180);
+    }
+
     function openPage(page) {
       router.push({
         name: "page",
@@ -437,6 +468,10 @@ export default {
       return unreadMessages.length;
     }
 
+    function getInitials(title) {
+      return (title || "?").substring(0, 2).toUpperCase();
+    }
+
     return {
       searchQuery,
       showCreateForm,
@@ -450,12 +485,14 @@ export default {
       getLatestMessageInfo,
       formatTimeSince,
       getUnreadCount,
+      getInitials,
       openCreateForm,
       cancelCreate,
       toggleMember,
       createPage,
+      closing,
       openPage,
-      close: () => emit("close"),
+      close: handleClose,
     };
   },
 };

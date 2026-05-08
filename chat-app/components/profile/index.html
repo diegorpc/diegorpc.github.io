@@ -9,16 +9,25 @@
         </div>
         <template v-else>
             <div class="profile-photo-section">
-                <div class="profile-photo-circle">
-                    <img v-if="localPreviewUrl" class="profile-photo-img" :src="localPreviewUrl" />
-                    <graffiti-get-media v-else-if="iconUrl" :url="iconUrl" :accept="{ types: ['image/*'] }" v-slot="{ media }">
-                        <img v-if="media && media.dataUrl" class="profile-photo-img" :src="media.dataUrl" />
-                        <span v-else class="profile-photo-initial">{{ (displayName || '?').substring(0, 1).toUpperCase() }}</span>
-                    </graffiti-get-media>
-                    <span v-else class="profile-photo-initial">{{ (displayName || '?').substring(0, 1).toUpperCase() }}</span>
-                    <div v-if="isUploadingPhoto" class="profile-photo-uploading">
-                        <div class="loading-spinner"></div>
+                <div class="profile-photo-wrapper">
+                    <div class="profile-photo-circle">
+                        <img v-if="localPreviewUrl && !shouldRemovePhoto" class="profile-photo-img" :src="localPreviewUrl" />
+                        <avatar v-else-if="!shouldRemovePhoto" :photo-url="iconUrl" :initial="(displayName || '?').substring(0, 1).toUpperCase()"></avatar>
+                        <avatar v-else :initial="(displayName || '?').substring(0, 1).toUpperCase()"></avatar>
+                        <div v-if="isUploadingPhoto" class="profile-photo-uploading">
+                            <div class="loading-spinner"></div>
+                        </div>
                     </div>
+                    <button 
+                        v-if="(iconUrl || localPreviewUrl) && !shouldRemovePhoto" 
+                        type="button"
+                        @click="removePhoto" 
+                        class="profile-photo-remove-btn"
+                        :disabled="isUploadingPhoto"
+                        title="Remove photo"
+                    >
+                        <X :size="16" />
+                    </button>
                 </div>
                 <label class="profile-photo-btn" for="profile-photo-input" :class="{ 'disabled': isUploadingPhoto }">
                     {{ isUploadingPhoto ? 'Uploading...' : (iconUrl || localPreviewUrl ? 'Change photo' : 'Add photo') }}
@@ -43,29 +52,37 @@
 
             <form @submit.prevent="saveProfile()" class="profile-form">
                 <div class="profile-field">
-                    <label class="profile-label" for="display-name">Display Name</label>
+                    <label class="profile-label" for="display-name">
+                        Display Name
+                        <span class="char-count">{{ displayName.length }}/20</span>
+                    </label>
                     <input
                         id="display-name"
                         type="text"
                         v-model="displayName"
                         placeholder="Your display name"
                         class="chat-title-input"
+                        maxlength="20"
                     />
                 </div>
 
                 <div class="profile-field">
-                    <label class="profile-label" for="bio">Bio</label>
+                    <label class="profile-label" for="bio">
+                        Bio
+                        <span class="char-count">{{ bio.length }}/100</span>
+                    </label>
                     <textarea
                         id="bio"
                         v-model="bio"
                         placeholder="Tell others about yourself..."
                         class="chat-title-input"
                         rows="4"
+                        maxlength="100"
                     ></textarea>
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" :disabled="isSavingProfile" class="create-btn">
+                    <button type="submit" :disabled="isSavingProfile || !hasChanges" class="create-btn">
                         {{ isSavingProfile ? 'Saving...' : 'Save Profile' }}
                     </button>
                 </div>

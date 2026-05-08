@@ -1,4 +1,4 @@
-import { ref, computed, watchEffect } from "vue";
+import { ref, computed, watch, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 import {
   useGraffiti,
@@ -8,6 +8,7 @@ import {
 import { componentFromFolder } from "../component-loader.js";
 
 const NotificationBadge = componentFromFolder("../notification-badge", import.meta.url);
+const Avatar = componentFromFolder("../avatar", import.meta.url);
 
 // for now just using the shared channel to discover chats from studio
 // later, chats would be discovered from:
@@ -16,7 +17,7 @@ const NotificationBadge = componentFromFolder("../notification-badge", import.me
 const TEMP_SHARED_CHANNEL = "designftw-26";
 
 export default {
-  components: { NotificationBadge },
+  components: { NotificationBadge, Avatar },
   setup() {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
@@ -192,6 +193,24 @@ export default {
       true,
     );
 
+    // isFirstPoll for read states may not reset when channels change from [] to non-empty,
+    // leaving a window where the list renders before read state data has arrived.
+    // This guard explicitly tracks that transition.
+    const waitingForReadStates = ref(false);
+    watch(readStateChannels, (newChannels, oldChannels) => {
+      if (newChannels.length > 0 && (!oldChannels || oldChannels.length === 0)) {
+        waitingForReadStates.value = true;
+      } else if (newChannels.length === 0) {
+        waitingForReadStates.value = false;
+      }
+    });
+    watch(areReadStatesLoading, (loading) => {
+      if (!loading) waitingForReadStates.value = false;
+    });
+    watch(readStateObjects, () => {
+      if (readStateChannels.value.length > 0) waitingForReadStates.value = false;
+    });
+
     // Combined loading state - wait for all data sources before showing UI to prevent flickering
     const isLoading = computed(() =>
       areChatsLoading.value ||
@@ -199,6 +218,7 @@ export default {
       arePagesLoading.value ||
       arePageMessagesLoading.value ||
       areReadStatesLoading.value ||
+      waitingForReadStates.value ||
       pendingHandles.value.size > 0,
     );
 

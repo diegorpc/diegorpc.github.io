@@ -1,0 +1,35 @@
+<div class="bookmarks-overlay" :class="{ 'is-closing': closing }" @click.self="close()">
+    <div class="bookmarks-panel" :class="{ 'is-closing': closing }">
+        <header class="pages-header">
+            <button @click="close()" class="back-btn" aria-label="Close">
+                <ChevronUp :size="22" />
+            </button>
+            <h2>Bookmarks</h2>
+        </header>
+
+        <div class="bookmarks-container">
+            <div v-if="bookmarks.length === 0" class="empty-state">
+                <p>No bookmarks yet. Long-press a message to bookmark it.</p>
+            </div>
+            <ul v-else class="pages-list">
+                <li
+                    v-for="item in bookmarks"
+                    :key="item.bookmarkObject.url"
+                    @click="$emit('scroll-to', item.messageUrl)"
+                    class="bookmark-item"
+                >
+                    <div class="bookmark-item-icon">
+                        <Bookmark :size="18" />
+                    </div>
+                    <div class="page-info">
+                        <div class="page-name">{{ item.senderName }}</div>
+                        <div class="page-preview">{{ item.content || '(no content)' }}</div>
+                    </div>
+                    <div class="page-meta">
+                        <div class="page-time">{{ formatTimeSince(item.bookmarkedAt) }}</div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

@@ -4,8 +4,12 @@ import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
+import { componentFromFolder } from "../component-loader.js";
+
+const Avatar = componentFromFolder("../avatar", import.meta.url);
 
 export default {
+  components: { Avatar },
   setup() {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
@@ -18,6 +22,7 @@ export default {
     const isSavingProfile = ref(false);
     const isUploadingPhoto = ref(false);
     const hasHydrated = ref(false);
+    const shouldRemovePhoto = ref(false);
 
     // Each user stores their profile in their own `${actor}/profile` channel.
     const profileChannels = computed(() =>
@@ -32,8 +37,8 @@ export default {
             properties: {
               activity: { const: "Update" },
               type: { const: "Profile" },
-              displayName: { type: "string" },
-              bio: { type: "string" },
+              displayName: { type: "string", maxLength: 20 },
+              bio: { type: "string", maxLength: 100 },
               published: { type: "number" },
             },
           },
@@ -64,12 +69,40 @@ export default {
       { immediate: true },
     );
 
+    // Check if profile has changed from saved version
+    const hasChanges = computed(() => {
+      // If there's a new file selected or photo marked for removal, there are changes
+      if (selectedFile.value || shouldRemovePhoto.value) return true;
+      
+      // If no profile exists yet, any non-empty field is a change
+      if (!latestProfile.value) {
+        return displayName.value.trim() !== "" || bio.value.trim() !== "";
+      }
+      
+      // Compare current values with saved profile
+      const saved = latestProfile.value.value;
+      return (
+        displayName.value !== (saved.displayName ?? "") ||
+        bio.value !== (saved.bio ?? "")
+      );
+    });
+
     function handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
       if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value);
       selectedFile.value = file;
       localPreviewUrl.value = URL.createObjectURL(file);
+      shouldRemovePhoto.value = false;
+    }
+
+    function removePhoto() {
+      if (localPreviewUrl.value) {
+        URL.revokeObjectURL(localPreviewUrl.value);
+      }
+      selectedFile.value = null;
+      localPreviewUrl.value = null;
+      shouldRemovePhoto.value = true;
     }
 
     async function saveProfile() {
@@ -77,23 +110,32 @@ export default {
       isSavingProfile.value = true;
       try {
         let newIconUrl = iconUrl.value;
-        if (selectedFile.value) {
+        
+        // Handle photo removal
+        if (shouldRemovePhoto.value) {
+          newIconUrl = "";
+          shouldRemovePhoto.value = false;
+        } else if (selectedFile.value) {
+          // Upload new photo
           isUploadingPhoto.value = true;
           try {
             newIconUrl = await graffiti.postMedia({ data: selectedFile.value }, session.value);
             selectedFile.value = null;
-            if (localPreviewUrl.value) URL.revokeObjectURL(localPreviewUrl.value);
-            localPreviewUrl.value = null;
+            // Keep preview URL until after we update iconUrl to prevent flashing
           } finally {
             isUploadingPhoto.value = false;
           }
         }
 
+        // Enforce character limits on backend
+        const truncatedDisplayName = displayName.value.slice(0, 20);
+        const truncatedBio = bio.value.slice(0, 100);
+
         const profileValue = {
           activity: "Update",
           type: "Profile",
-          displayName: displayName.value,
-          bio: bio.value,
+          displayName: truncatedDisplayName,
+          bio: truncatedBio,
           published: Date.now(),
         };
         if (newIconUrl) profileValue.icon = newIconUrl;
@@ -115,6 +157,13 @@ export default {
         );
 
         iconUrl.value = newIconUrl;
+        
+        // Clear preview URL after iconUrl is updated (prevents flash)
+        if (localPreviewUrl.value) {
+          URL.revokeObjectURL(localPreviewUrl.value);
+          localPreviewUrl.value = null;
+        }
+        
         hasHydrated.value = true;
       } finally {
         isSavingProfile.value = false;
@@ -135,7 +184,10 @@ export default {
       isSavingProfile,
       isUploadingPhoto,
       isLoadingProfile,
+      hasChanges,
+      shouldRemovePhoto,
       handleFileSelect,
+      removePhoto,
       saveProfile,
       logout,
     };

@@ -7,15 +7,28 @@
         <div v-if="!isHydrated" class="loading-spinner-container">
             <div class="loading-spinner"></div>
         </div>
-        <div v-else class="setting-item">
-            <div class="setting-info">
-                <div class="setting-label">Show message preview</div>
-                <div class="setting-description">Display message previews in chat list</div>
+        <div v-else>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <div class="setting-label">Show message preview</div>
+                    <div class="setting-description">Display message previews in chat list</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="showMessagePreview" @change="saveSetting('showMessagePreview', showMessagePreview)" />
+                    <span class="toggle-slider"></span>
+                </label>
             </div>
-            <label class="toggle-switch">
-                <input type="checkbox" v-model="showMessagePreview" @change="saveSetting('showMessagePreview', showMessagePreview)" />
-                <span class="toggle-slider"></span>
-            </label>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <div class="setting-label">Reduce motion</div>
+                    <div class="setting-description">Disable animations for accessibility</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="reduceMotion" @change="saveSetting('reduceMotion', reduceMotion)" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
         </div>
     </div>
 </div>

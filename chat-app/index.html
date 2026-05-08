@@ -22,7 +22,7 @@
     <body>
         <div id="app">Loading...</div>
         <template id="app-template">
-            <div class="app-container">
+            <div class="app-container" :class="{ 'reduce-motion': reduceMotion }">
                 <button v-if="!$graffitiSession.value" @click="$graffiti.login()" class="login-btn">
                     Log In
                 </button>

@@ -5,14 +5,14 @@ import {
 } from "@graffiti-garden/wrapper-vue";
 import { componentFromFolder } from "../component-loader.js";
 
-const ActorAvatar = componentFromFolder("../actor-avatar", import.meta.url);
+const Avatar = componentFromFolder("../avatar", import.meta.url);
 
 const MENU_WIDTH = 240;
 const MENU_MARGIN = 8;
-const MIN_SPACE_BELOW = 200;
+const FLOATING_MENU_HEIGHT = 350; // matches max-height in CSS
 
 export default {
-  components: { ActorAvatar },
+  components: { Avatar },
   props: {
     message: { type: Object, required: true },
     isBlockStart: { type: Boolean, default: false },
@@ -22,8 +22,9 @@ export default {
     actorDisplayNames: { type: Object, default: () => new Map() },
     actorPhotoUrls: { type: Object, default: () => new Map() },
     messageActors: { type: Array, default: () => [] },
+    bookmarkObject: { type: Object, default: null },
   },
-  emits: ["reply"],
+  emits: ["reply", "open-profile", "bookmark", "unbookmark"],
   setup(props, { emit }) {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
@@ -88,10 +89,13 @@ export default {
       };
     });
 
-    // True when there is enough viewport space below the message for a floating card
+    // Use the floating card when there is enough room below the message end for the full menu.
+    // Clamp outerBottom to the viewport edge so messages that extend off-screen never produce
+    // a negative space reading that would incorrectly prefer floating over the bottom sheet.
     const menuFloating = computed(() => {
       if (!menuAnchor.value) return false;
-      return window.innerHeight - menuAnchor.value.outerBottom - MENU_MARGIN >= MIN_SPACE_BELOW;
+      const visibleBottom = Math.min(menuAnchor.value.outerBottom, window.innerHeight);
+      return window.innerHeight - visibleBottom - MENU_MARGIN >= FLOATING_MENU_HEIGHT;
     });
 
     // Style for the floating menu card or the bottom sheet
@@ -100,8 +104,11 @@ export default {
         return {
           position: "fixed",
           bottom: "0",
-          left: "0",
-          right: "0",
+          left: "50%",
+          transform: "translateX(-50%)",
+          minWidth: "470px",
+          maxWidth: "600px",
+          maxHeight: "700px !important",
           borderRadius: "20px 20px 0 0",
         };
       }
@@ -219,6 +226,21 @@ export default {
       closeMenu();
     }
 
+    function handleOpenProfile() {
+      emit("open-profile", props.message.actor);
+      closeMenu();
+    }
+
+    function handleBookmark() {
+      emit("bookmark", props.message);
+      closeMenu();
+    }
+
+    function handleUnbookmark() {
+      emit("unbookmark", props.bookmarkObject);
+      closeMenu();
+    }
+
     function getReaderDisplayName(actor) {
       const names = props.actorDisplayNames;
       return (names instanceof Map ? names.get(actor) : null) || actor.split(".")[0];
@@ -244,6 +266,9 @@ export default {
       startLongPress,
       cancelLongPress,
       handleReply,
+      handleOpenProfile,
+      handleBookmark,
+      handleUnbookmark,
       getReaderDisplayName,
     };
   },

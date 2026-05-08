@@ -1,5 +1,6 @@
 <div
-    :class="['message', isOwnMessage ? 'own-message' : 'other-message', { 'message-block-start': isBlockStart, 'message-block-continue': !isBlockStart }]"
+    :class="['message', isOwnMessage ? 'own-message' : 'other-message', { 'message-block-start': isBlockStart, 'message-block-continue': !isBlockStart, 'is-bookmarked': !!bookmarkObject }]"
+    :data-message-url="message.url"
     @contextmenu.prevent="openMenu"
     @touchstart.passive="startLongPress"
     @touchend="cancelLongPress"
@@ -7,21 +8,18 @@
 >
     <div v-if="!isOwnMessage" class="msg-avatar-col">
         <div v-if="isBlockEnd" class="msg-avatar">
-            <actor-avatar
+            <avatar
                 :photo-url="senderPhotoUrl"
                 :initial="(displayName || '?').substring(0, 1).toUpperCase()"
-            ></actor-avatar>
+            ></avatar>
         </div>
     </div>
 
     <div :class="{ 'msg-content-col': !isOwnMessage }">
-        <div v-if="!isOwnMessage && isBlockStart" class="message-sender">
-            <span v-if="displayName" class="display-name">{{ displayName }}</span>
-            <span v-else class="actor-handle">
-                <graffiti-actor-to-handle :actor="message.actor"></graffiti-actor-to-handle>
-            </span>
+        <div v-if="!isOwnMessage && isBlockStart && displayName" class="message-sender">
+            <span class="display-name">{{ displayName }}</span>
         </div>
-        <div class="message-bubble">
+        <div :class="['message-bubble', { 'message-bubble--bookmarked': !!bookmarkObject }]">
             <div v-if="replyQuote" class="reply-quote">
                 <div class="reply-quote-author">
                     <span v-if="replyQuote.displayName">{{ replyQuote.displayName }}</span>
@@ -125,6 +123,18 @@
                     <button class="menu-action" @click="handleReply">
                         <Reply :size="18" />
                         <span>Reply</span>
+                    </button>
+                    <button v-if="!bookmarkObject" class="menu-action" @click="handleBookmark">
+                        <Bookmark :size="18" />
+                        <span>Bookmark</span>
+                    </button>
+                    <button v-else class="menu-action menu-action-unbookmark" @click="handleUnbookmark">
+                        <BookmarkCheck :size="18" />
+                        <span>Remove bookmark</span>
+                    </button>
+                    <button class="menu-action" @click="handleOpenProfile">
+                        <User :size="18" />
+                        <span>Open profile</span>
                     </button>
                     <button class="menu-action" @click="showReadStatus = true">
                         <Eye :size="18" />

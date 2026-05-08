@@ -1,4 +1,4 @@
-import { ref, computed, toRef } from "vue";
+import { ref, computed, toRef, watchEffect } from "vue";
 import {
   useGraffiti,
   useGraffitiSession,
@@ -6,7 +6,8 @@ import {
 } from "@graffiti-garden/wrapper-vue";
 import { componentFromFolder } from "../component-loader.js";
 
-const ActorAvatar = componentFromFolder("../actor-avatar", import.meta.url);
+const Avatar = componentFromFolder("../avatar", import.meta.url);
+const UserProfile = componentFromFolder("../user-profile", import.meta.url);
 
 const ADD_SCHEMA = {
   properties: {
@@ -62,7 +63,7 @@ function resolveActiveActors(addObjects, removeObjects, ownerActor) {
 }
 
 export default {
-  components: { ActorAvatar },
+  components: { Avatar, UserProfile },
   props: {
     chatId:       { type: String, required: true },
     chatOwner:    { type: String, default: null },
@@ -71,10 +72,18 @@ export default {
     parentChatId: { type: String, default: null },
   },
   emits: ["close"],
-  setup(props) {
+  setup(props, { emit }) {
     const graffiti = useGraffiti();
     const session  = useGraffitiSession();
     const chatIdRef = toRef(props, "chatId");
+
+    const viewingActor = ref(null);
+    const closing = ref(false);
+    function handleClose() {
+      if (closing.value) return;
+      closing.value = true;
+      setTimeout(() => emit("close"), 180);
+    }
 
     const showInviteForm  = ref(false);
     const inviteHandle    = ref("");
@@ -102,8 +111,30 @@ export default {
       poll: pollRemoves,
     } = useGraffitiDiscover(computed(() => [`${chatIdRef.value}/members`]), REMOVE_SCHEMA);
 
+    const handleCache = ref(new Map());
+    const pendingHandles = ref(new Set());
+
+    async function getActorHandle(actor) {
+      if (handleCache.value.has(actor)) return handleCache.value.get(actor);
+      if (pendingHandles.value.has(actor)) return null;
+      pendingHandles.value.add(actor);
+      try {
+        const handle = await graffiti.actorToHandle(actor);
+        handleCache.value.set(actor, handle);
+        return handle;
+      } catch {
+        const fallback = actor.split(".")[0];
+        handleCache.value.set(actor, fallback);
+        return fallback;
+      } finally {
+        pendingHandles.value.delete(actor);
+      }
+    }
+
     // Block the UI until BOTH arrives — prevents removed-member flash
-    const isLoading = computed(() => isMembersLoading.value || isRemovesLoading.value);
+    const isLoading = computed(
+      () => isMembersLoading.value || isRemovesLoading.value || pendingHandles.value.size > 0,
+    );
 
     const memberActors = computed(() =>
       resolveActiveActors(memberObjects.value, removeObjects.value, props.chatOwner),
@@ -143,35 +174,30 @@ export default {
       },
     );
 
-    const actorHandles = ref({});
-    async function resolveHandle(actor) {
-      if (actorHandles.value[actor] !== undefined) return;
-      actorHandles.value[actor] = null;
-      try {
-        actorHandles.value[actor] = await graffiti.actorToHandle(actor);
-      } catch {
-        actorHandles.value[actor] = null;
+    // Eagerly resolve handles for all visible actors before the list renders.
+    // Must be declared after memberActors and invitableParentActors since
+    // watchEffect runs its callback immediately on registration.
+    watchEffect(() => {
+      const all = [...memberActors.value, ...invitableParentActors.value];
+      for (const actor of all) {
+        if (!handleCache.value.has(actor) && !pendingHandles.value.has(actor)) {
+          getActorHandle(actor);
+        }
       }
-    }
-
-    function shortLabel(displayName, handle) {
-      if (displayName) return displayName;
-      if (handle) return handle.replace(/\.graffiti\.actor$/, "");
-      return "…";
-    }
+    });
 
     function buildMemberInfo(actor) {
       const profile = profileObjects.value
         .filter((p) => p.actor === actor)
         .toSorted((a, b) => b.value.published - a.value.published)[0];
       const displayName = profile?.value.displayName || null;
-      const handle = actorHandles.value[actor] || null;
-      if (!displayName) resolveHandle(actor);
+      const handle = handleCache.value.get(actor) || null;
+      const label = displayName || (handle ? handle.replace(/\.graffiti\.actor$/, "") : actor.split(".")[0]);
       return {
         actor,
         displayName,
         handle,
-        label: shortLabel(displayName, handle),
+        label,
         photoUrl: profile?.value.icon || null,
         isCurrentUser: actor === session.value?.actor,
         isOwner: actor === props.chatOwner,
@@ -284,6 +310,10 @@ export default {
       }
     }
 
+    function openUserProfile(actor) {
+      viewingActor.value = actor;
+    }
+
     return {
       members,
       isOwner,
@@ -297,6 +327,10 @@ export default {
       isInviting,
       inviteError,
       invitableParentMembers,
+      closing,
+      handleClose,
+      viewingActor,
+      openUserProfile,
       inviteMember,
       addPageMember,
       removeMember,

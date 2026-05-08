@@ -4,11 +4,16 @@
             <ChevronLeft :size="22" />
         </button>
         <template v-if="isPageLoaded">
-            <div class="chat-avatar small">{{ getInitials(pageTitle) }}</div>
-            <div class="page-header-title">
+            <div class="chat-avatar small clickable" @click="showPageSettings = true">
+                <avatar :icon-url="pageIcon" :title="pageTitle"></avatar>
+            </div>
+            <div class="page-header-title" @click="showPageSettings = true" style="cursor: pointer;">
                 <div class="page-parent-name">{{ parentChatTitle || '...' }}'s</div>
                 <h2>{{ pageTitle }}</h2>
             </div>
+            <button @click="showBookmarksList = true" class="members-btn" aria-label="Bookmarks">
+                <Bookmark :size="22" />
+            </button>
             <button @click="showMembersList = true" class="members-btn" aria-label="Members">
                 <Users :size="22" />
             </button>
@@ -17,6 +22,8 @@
             <div class="loading-spinner small"></div>
         </div>
     </header>
+
+    <user-profile v-if="profileActor" :actor="profileActor" @close="profileActor = null"></user-profile>
 
     <members-list
         v-if="showMembersList"
@@ -27,14 +34,56 @@
         @close="showMembersList = false"
     ></members-list>
 
+    <bookmarks-list
+        v-if="showBookmarksList"
+        :bookmarks="enrichedBookmarks"
+        :title="pageTitle"
+        @close="showBookmarksList = false"
+        @scroll-to="scrollToMessage"
+    ></bookmarks-list>
+
+    <page-settings
+        v-if="showPageSettings"
+        :page-id="pageId"
+        :page-owner="pageOwner"
+        :initial-title="pageTitle"
+        :initial-icon="pageIcon"
+        :initial-description="pageDescription"
+        @close="showPageSettings = false"
+        @updated="handlePageSettingsUpdated"
+    ></page-settings>
+
     <div class="messages-container" ref="messagesContainer">
+        <div v-if="stickyBookmarkedMessage" class="sticky-bookmark">
+            <div class="sticky-bookmark-meta">
+                <Bookmark :size="11" />
+                <span class="sticky-bookmark-label"></span>
+                <button class="sticky-bookmark-dismiss" @click.stop="dismissBookmarks" aria-label="Dismiss bookmarks">
+                    <X :size="13" />
+                </button>
+            </div>
+            <div class="sticky-bookmark-msg">
+                <div class="sticky-bookmark-avatar">
+                    <avatar
+                        :photo-url="actorPhotoUrls.get(stickyBookmarkedMessage.actor)"
+                        :initial="(stickyDisplayName || '?').substring(0, 1).toUpperCase()"
+                    ></avatar>
+                </div>
+                <div class="sticky-bookmark-msg-body">
+                    <div class="sticky-bookmark-sender">{{ stickyDisplayName }}</div>
+                    <div class="sticky-bookmark-bubble-inner" @click="scrollToMessage(stickyBookmarkedMessage.url)">
+                        <div class="sticky-bookmark-text">{{ stickyBookmarkedMessage.value.content }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div v-if="areMessagesLoading" class="loading-spinner-container">
             <div class="loading-spinner"></div>
         </div>
         <div v-else-if="enrichedMessages.length === 0" class="empty-messages">
             <p>No messages yet. Start the conversation!</p>
         </div>
-        <div v-else class="messages-list">
+        <div v-else class="messages-list" :style="{ opacity: hasScrolledOnMount ? 1 : 0, transition: 'opacity 0.15s ease-in' }">
             <chat-message
                 v-for="item in enrichedMessages"
                 :key="item.message.url"
@@ -46,30 +95,37 @@
                 :actor-display-names="actorDisplayNames"
                 :actor-photo-urls="actorPhotoUrls"
                 :message-actors="uniqueActors"
+                :bookmark-object="bookmarksByUrl.get(item.message.url) || null"
                 @reply="handleReply"
+                @open-profile="openUserProfile"
+                @bookmark="handleBookmark"
+                @unbookmark="handleUnbookmark"
             ></chat-message>
         </div>
     </div>
 
-    <footer class="message-input-footer">
-        <div v-if="replyingTo" class="reply-preview-bar">
-            <Reply :size="14" />
-            <div class="reply-preview-content">
-                <span class="reply-preview-author">{{ replyingTo.displayName || 'Replying' }}</span>
-                <span class="reply-preview-text">{{ replyingTo.content }}</span>
-            </div>
-            <button class="reply-cancel-btn" @click="replyingTo = null" aria-label="Cancel reply">
-                <X :size="15" />
-            </button>
+    <div v-if="replyingTo" class="reply-preview-bar">
+        <Reply :size="14" />
+        <div class="reply-preview-content">
+            <span class="reply-preview-author">{{ replyingTo.displayName || 'Replying' }}</span>
+            <span class="reply-preview-text">{{ replyingTo.content }}</span>
         </div>
+        <button class="reply-cancel-btn" @click="replyingTo = null" aria-label="Cancel reply">
+            <X :size="15" />
+        </button>
+    </div>
+
+    <footer class="message-input-footer">
         <form @submit.prevent="sendMessage()" class="message-form">
             <input
                 type="text"
                 v-model="myMessage"
                 placeholder="Message..."
                 class="message-input"
+                :disabled="isSendingMessage"
+                ref="messageInput"
             />
-            <button type="submit" :disabled="!myMessage || isSendingMessage" class="send-btn" aria-label="Send">
+            <button type="submit" :disabled="!myMessage || isSendingMessage" :class="['send-btn', { 'send-btn--sending': isSendingMessage }]" aria-label="Send">
                 <Send :size="18" />
             </button>
         </form>

@@ -1,0 +1,21 @@
+<Teleport to="body">
+    <div class="user-profile-overlay" :class="{ 'is-closing': closing }" @click.self="handleClose()">
+        <div class="user-profile-card" :class="{ 'is-closing': closing }">
+            <button class="user-profile-close" @click="handleClose()" aria-label="Close">
+                <X :size="18" />
+            </button>
+
+            <div v-if="isLoading" class="loading-spinner-container" style="min-height: 140px;">
+                <div class="loading-spinner"></div>
+            </div>
+            <template v-else>
+                <div class="user-profile-avatar-wrap">
+                    <avatar :photo-url="photoUrl" :initial="initial"></avatar>
+                </div>
+                <div class="user-profile-name">{{ displayName || handle }}</div>
+                <div v-if="displayName && handle" class="user-profile-handle">{{ handle }}</div>
+                <p class="user-profile-bio" :class="{ 'no-bio': !bio }">{{ bio || 'No bio yet' }}</p>
+            </template>
+        </div>
+    </div>
+</Teleport>

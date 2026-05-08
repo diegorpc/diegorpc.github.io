@@ -44,7 +44,9 @@
         </div>
         <ul v-else class="chat-list">
             <li v-for="chat in sortedChats" :key="chat.url" @click="openChat(chat)" class="chat-item">
-                <div class="chat-avatar">{{ getInitials(chat.value.title) }}</div>
+                <div class="chat-avatar">
+                    <avatar :icon-url="chat.value.icon" :title="chat.value.title"></avatar>
+                </div>
                 <div class="chat-info">
                     <div class="chat-name">{{ chat.value.title }}</div>
                     <div v-if="!showMessagePreview || !getLatestMessageInfo(chat)" class="chat-preview">Tap to open</div>

@@ -1,5 +1,0 @@
-<graffiti-get-media v-if="photoUrl" :url="photoUrl" :accept="{ types: ['image/*'] }" v-slot="{ media }">
-  <img v-if="media && media.dataUrl" class="actor-avatar-img" :src="media.dataUrl" />
-  <span v-else class="actor-avatar-loading"></span>
-</graffiti-get-media>
-<span v-else class="actor-avatar-fallback">{{ (initial || "?").substring(0, 1).toUpperCase() }}</span>
