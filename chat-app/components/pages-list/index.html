@@ -112,6 +112,9 @@
                                 ? formatTimeSince(getLatestMessageInfo(page).message.value.published)
                                 : formatTimeSince(page.value.published) }}
                         </div>
+                        <span v-if="getBookmarkCount(page) > 0" class="chat-count-meta">
+                            <Bookmark :size="10" />{{ getBookmarkCount(page) }}
+                        </span>
                         <NotificationBadge :count="getUnreadCount(page)" />
                     </div>
                 </li>

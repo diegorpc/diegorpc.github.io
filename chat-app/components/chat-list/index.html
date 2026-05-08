@@ -56,9 +56,17 @@
                 </div>
                 <div class="chat-meta">
                     <div class="chat-time">
-                        {{ getLatestMessageInfo(chat) 
+                        {{ getLatestMessageInfo(chat)
                             ? formatTimeSince(getLatestMessageInfo(chat).message.value.published)
                             : formatTimeSince(chat.value.published) }}
+                    </div>
+                    <div class="chat-counts">
+                        <span v-if="getPageCount(chat) > 0" class="chat-count-meta">
+                            <Files :size="10" />{{ getPageCount(chat) }}
+                        </span>
+                        <span v-if="getBookmarkCount(chat) > 0" class="chat-count-meta">
+                            <Bookmark :size="10" />{{ getBookmarkCount(chat) }}
+                        </span>
                     </div>
                     <NotificationBadge :count="getUnreadCount(chat)" />
                 </div>

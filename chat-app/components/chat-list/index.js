@@ -82,10 +82,29 @@ export default {
         true,
       );
 
-    // Discover messages for all chats
     const chatChannels = computed(() =>
       chatObjects.value.map((c) => c.value.channel),
     );
+
+    // Discover bookmarks for all chats (supplementary — does not block loading)
+    const { objects: allBookmarkObjects } = useGraffitiDiscover(
+      computed(() => chatChannels.value.map((ch) => `${ch}/bookmarks`)),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "messageUrl", "bookmarkedAt"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Bookmark" },
+              messageUrl: { type: "string" },
+              bookmarkedAt: { type: "number" },
+            },
+          },
+        },
+      },
+    );
+
+    // Discover messages for all chats
 
     const { objects: allMessageObjects, isFirstPoll: areMessagesLoading } = useGraffitiDiscover(
       chatChannels,
@@ -509,6 +528,24 @@ export default {
       return unreadPageMessages.length > 0;
     }
 
+    function getPageCount(chat) {
+      if (!session.value?.actor) return 0;
+      return allPageObjects.value.filter(
+        (p) => p.value.parentChatId === chat.value.channel &&
+               (p.value.members || []).includes(session.value.actor),
+      ).length;
+    }
+
+    function getBookmarkCount(chat) {
+      const channel = `${chat.value.channel}/bookmarks`;
+      const urls = new Set(
+        allBookmarkObjects.value
+          .filter((bm) => bm.channels.includes(channel))
+          .map((bm) => bm.value.messageUrl),
+      );
+      return urls.size;
+    }
+
     function getInitials(title) {
       return (title || "?").substring(0, 2).toUpperCase();
     }
@@ -528,6 +565,8 @@ export default {
       getInitials,
       getLatestMessageInfo,
       getUnreadCount,
+      getPageCount,
+      getBookmarkCount,
     };
   },
 };

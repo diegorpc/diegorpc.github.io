@@ -285,6 +285,23 @@ body {
     font-size: 0.75rem;
 }
 
+.chat-counts {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.2rem;
+}
+
+.chat-count-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.65rem;
+    font-weight: var(--weightSemiBold);
+    color: var(--accent-primary);
+    border-radius: 20px;
+    line-height: 1;
+}
+
 .chat-header {
     display: flex;
     align-items: center;

@@ -262,6 +262,34 @@ export default {
       return map;
     });
 
+    // Discover bookmarks for all pages (supplementary — does not block loading)
+    const { objects: allPageBookmarkObjects } = useGraffitiDiscover(
+      computed(() => pageChannels.value.map((ch) => `${ch}/bookmarks`)),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "messageUrl", "bookmarkedAt"],
+            properties: {
+              activity: { const: "Create" },
+              type: { const: "Bookmark" },
+              messageUrl: { type: "string" },
+              bookmarkedAt: { type: "number" },
+            },
+          },
+        },
+      },
+    );
+
+    function getBookmarkCount(page) {
+      const channel = `${page.value.channel}/bookmarks`;
+      const urls = new Set(
+        allPageBookmarkObjects.value
+          .filter((bm) => bm.channels.includes(channel))
+          .map((bm) => bm.value.messageUrl),
+      );
+      return urls.size;
+    }
+
     // Compute latest message per page
     const pageLatestMessages = computed(() => {
       const map = new Map();
@@ -485,6 +513,7 @@ export default {
       getLatestMessageInfo,
       formatTimeSince,
       getUnreadCount,
+      getBookmarkCount,
       getInitials,
       openCreateForm,
       cancelCreate,
