@@ -226,6 +226,33 @@ export default {
       }
     }
 
+    const isLeaving = ref(false);
+
+    async function leavePage() {
+      if (!session.value?.actor) return;
+      isLeaving.value = true;
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "Remove",
+              type: "Member",
+              member: session.value.actor,
+              published: Date.now(),
+            },
+            channels: [`${props.pageId}/members`],
+          },
+          session.value,
+        );
+        handleClose();
+        setTimeout(() => window.history.back(), 180);
+      } catch (err) {
+        console.error("Failed to leave page:", err);
+      } finally {
+        isLeaving.value = false;
+      }
+    }
+
     const closing = ref(false);
     function handleClose() {
       if (closing.value) return;
@@ -255,6 +282,8 @@ export default {
       save,
       closing,
       handleDeleteClick,
+      isLeaving,
+      leavePage,
       close,
     };
   },

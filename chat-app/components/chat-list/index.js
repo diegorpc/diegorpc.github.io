@@ -82,6 +82,43 @@ export default {
         true,
       );
 
+    // Discover Leave/Chat records the current user has posted to their own inbox
+    // (written by leaveChat() so we can filter those chats from the list)
+    const { objects: inboxLeaveObjects } = useGraffitiDiscover(
+      computed(() => session.value?.actor ? [`${session.value.actor}/inbox`] : []),
+      {
+        properties: {
+          value: {
+            required: ["activity", "type", "channel", "published"],
+            properties: {
+              activity: { const: "Leave" },
+              type: { const: "Chat" },
+              channel: { type: "string" },
+              published: { type: "number" },
+            },
+          },
+        },
+      },
+      undefined,
+      true,
+    );
+
+    // Set of chat channels the current user has left (leave record is newer than any re-invite)
+    const leftChatChannels = computed(() => {
+      const set = new Set();
+      for (const leave of inboxLeaveObjects.value) {
+        if (leave.actor !== session.value?.actor) continue;
+        const channel = leave.value.channel;
+        const latestInvite = chatObjects.value
+          .filter((c) => c.value.channel === channel)
+          .toSorted((a, b) => b.value.published - a.value.published)[0];
+        if (!latestInvite || leave.value.published >= latestInvite.value.published) {
+          set.add(channel);
+        }
+      }
+      return set;
+    });
+
     const chatChannels = computed(() =>
       chatObjects.value.map((c) => c.value.channel),
     );
@@ -102,7 +139,23 @@ export default {
           },
         },
       },
+      undefined,
+      true,
     );
+
+    // Unique bookmarked message URLs keyed by chat channel
+    const bookmarkCountByChannel = computed(() => {
+      const map = new Map();
+      for (const bm of allBookmarkObjects.value) {
+        for (const ch of bm.channels) {
+          if (!ch.endsWith("/bookmarks")) continue;
+          const chatChannel = ch.slice(0, -"/bookmarks".length);
+          if (!map.has(chatChannel)) map.set(chatChannel, new Set());
+          map.get(chatChannel).add(bm.value.messageUrl);
+        }
+      }
+      return map;
+    });
 
     // Discover messages for all chats
 
@@ -362,11 +415,9 @@ export default {
 
     const sortedChats = computed(() => {
       const q = searchQuery.value.trim().toLowerCase();
-      const chats = q
-        ? chatObjects.value.filter((chat) =>
-            chat.value.title.toLowerCase().includes(q),
-          )
-        : chatObjects.value;
+      const chats = chatObjects.value
+        .filter((chat) => !leftChatChannels.value.has(chat.value.channel))
+        .filter((chat) => !q || chat.value.title.toLowerCase().includes(q));
       return chats.toSorted((a, b) => {
         const aLatest = chatLatestMessages.value.get(a.value.channel);
         const bLatest = chatLatestMessages.value.get(b.value.channel);
@@ -540,13 +591,7 @@ export default {
     }
 
     function getBookmarkCount(chat) {
-      const channel = `${chat.value.channel}/bookmarks`;
-      const urls = new Set(
-        allBookmarkObjects.value
-          .filter((bm) => bm.channels.includes(channel))
-          .map((bm) => bm.value.messageUrl),
-      );
-      return urls.size;
+      return bookmarkCountByChannel.value.get(chat.value.channel) ?? 0;
     }
 
     function getInitials(title) {

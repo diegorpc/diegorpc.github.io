@@ -77,15 +77,26 @@
                 </button>
             </div>
 
-            <button 
+            <button
                 v-if="isOwner"
-                type="button" 
-                @click="handleDeleteClick()" 
+                type="button"
+                @click="handleDeleteClick()"
                 :disabled="isDeleting"
                 class="delete-chat-btn"
             >
                 <Trash2 :size="18" />
                 {{ deleteButtonText }}
+            </button>
+
+            <button
+                v-if="!isOwner"
+                type="button"
+                @click="leavePage()"
+                :disabled="isLeaving"
+                class="delete-chat-btn"
+            >
+                <LogOut :size="18" />
+                {{ isLeaving ? 'Leaving…' : 'Leave Page' }}
             </button>
         </form>
     </div>

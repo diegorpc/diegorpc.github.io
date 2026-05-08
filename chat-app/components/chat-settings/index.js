@@ -201,6 +201,48 @@ export default {
       }
     }
 
+    const isLeaving = ref(false);
+
+    async function leaveChat() {
+      if (!session.value?.actor) return;
+      isLeaving.value = true;
+      try {
+        // Remove ourselves from the member roster
+        await graffiti.post(
+          {
+            value: {
+              activity: "Remove",
+              type: "Member",
+              member: session.value.actor,
+              published: Date.now(),
+            },
+            channels: [`${props.chatId}/members`],
+          },
+          session.value,
+        );
+        // Post a Leave record to our own inbox so chat-list can filter this chat out.
+        // The original invite object was posted by the owner and cannot be deleted by us.
+        await graffiti.post(
+          {
+            value: {
+              activity: "Leave",
+              type: "Chat",
+              channel: props.chatId,
+              published: Date.now(),
+            },
+            channels: [`${session.value.actor}/inbox`],
+          },
+          session.value,
+        );
+        handleClose();
+        setTimeout(() => window.history.back(), 180);
+      } catch (err) {
+        console.error("Failed to leave chat:", err);
+      } finally {
+        isLeaving.value = false;
+      }
+    }
+
     const closing = ref(false);
     function handleClose() {
       if (closing.value) return;
@@ -230,6 +272,8 @@ export default {
       save,
       closing,
       handleDeleteClick,
+      isLeaving,
+      leaveChat,
       close,
     };
   },

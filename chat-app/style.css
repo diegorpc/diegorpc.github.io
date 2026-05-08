@@ -1268,18 +1268,17 @@ body {
     background: rgba(0, 0, 0, 0.3);
     z-index: 20;
     display: flex;
+    flex-direction: column;
     padding-top: 70px;
 }
 
 .settings-panel {
     background-color: var(--bg1);
-    flex: 1;
     border-radius: var(--border-md);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 0;
-    max-height: 600px;
+    max-height: 100%;
 }
 /* Pages list overlay */
 .pages-overlay {
