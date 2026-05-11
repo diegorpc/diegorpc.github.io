@@ -1,4 +1,4 @@
-import { createApp, computed } from "vue";
+import { createApp, computed, ref, onUnmounted } from "vue";
 import { createRouter, createWebHashHistory } from "vue-router";
 // import { GraffitiLocal } from "@graffiti-garden/implementation-local";
 import { GraffitiDecentralized } from "@graffiti-garden/implementation-decentralized";
@@ -75,7 +75,21 @@ const App = {
         .toSorted((a, b) => b.value.published - a.value.published)[0];
       return latest?.value.reduceMotion ?? false;
     });
-    return { reduceMotion };
+    // Reactive desktop breakpoint flag. Used to render a persistent
+    // chat-list sidebar alongside the router-view on wide viewports.
+    const desktopMq = window.matchMedia("(min-width: 900px)");
+    const isDesktop = ref(desktopMq.matches);
+    const onMqChange = (e) => { isDesktop.value = e.matches; };
+    if (desktopMq.addEventListener) {
+      desktopMq.addEventListener("change", onMqChange);
+      onUnmounted(() => desktopMq.removeEventListener("change", onMqChange));
+    } else if (desktopMq.addListener) {
+      // Safari < 14 fallback
+      desktopMq.addListener(onMqChange);
+      onUnmounted(() => desktopMq.removeListener(onMqChange));
+    }
+
+    return { reduceMotion, isDesktop };
   },
 };
 
@@ -91,5 +105,10 @@ const icons = { Plus, Send, Trash2, X, Crown, MessageCircle, User, LogOut, Setti
 for (const [name, component] of Object.entries(icons)) {
   app.component(name, component);
 }
+
+// Register ChatList globally so it can be reused as a persistent
+// sidebar in the App template on desktop viewports (in addition to
+// being a route component for `/home`).
+app.component("chat-list", ChatList);
 
 app.mount("#app");

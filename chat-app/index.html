@@ -22,26 +22,50 @@
     <body>
         <div id="app">Loading...</div>
         <template id="app-template">
-            <div class="app-container" :class="{ 'reduce-motion': reduceMotion }">
+            <div class="app-container" :class="{ 'reduce-motion': reduceMotion, 'is-desktop': isDesktop }">
                 <button v-if="!$graffitiSession.value" @click="$graffiti.login()" class="login-btn">
                     Log In
                 </button>
                 <template v-else>
-                    <router-view></router-view>
-                    <nav v-if="$route.name !== 'chat' && $route.name !== 'page'" class="app-nav">
-                        <router-link to="/home" class="nav-link">
-                            <message-circle :size="24"></message-circle>
-                            <span>Chats</span>
-                        </router-link>
-                        <router-link to="/profile" class="nav-link">
-                            <user :size="24"></user>
-                            <span>Profile</span>
-                        </router-link>
-                        <router-link to="/settings" class="nav-link">
-                            <settings-icon :size="24"></settings-icon>
-                            <span>Settings</span>
-                        </router-link>
-                    </nav>
+                    <aside v-if="isDesktop" class="desktop-sidebar">
+                        <chat-list></chat-list>
+                        <nav class="app-nav desktop-nav">
+                            <router-link to="/home" class="nav-link">
+                                <message-circle :size="20"></message-circle>
+                                <span>Chats</span>
+                            </router-link>
+                            <router-link to="/profile" class="nav-link">
+                                <user :size="20"></user>
+                                <span>Profile</span>
+                            </router-link>
+                            <router-link to="/settings" class="nav-link">
+                                <settings-icon :size="20"></settings-icon>
+                                <span>Settings</span>
+                            </router-link>
+                        </nav>
+                    </aside>
+                    <div class="app-main">
+                        <router-view v-if="!(isDesktop && $route.name === 'home')"></router-view>
+                        <div v-else class="desktop-welcome">
+                            <message-circle :size="56"></message-circle>
+                            <h2>Welcome</h2>
+                            <p>Select a chat from the sidebar to start messaging, or create a new one.</p>
+                        </div>
+                        <nav v-if="!isDesktop && $route.name !== 'chat' && $route.name !== 'page'" class="app-nav">
+                            <router-link to="/home" class="nav-link">
+                                <message-circle :size="24"></message-circle>
+                                <span>Chats</span>
+                            </router-link>
+                            <router-link to="/profile" class="nav-link">
+                                <user :size="24"></user>
+                                <span>Profile</span>
+                            </router-link>
+                            <router-link to="/settings" class="nav-link">
+                                <settings-icon :size="24"></settings-icon>
+                                <span>Settings</span>
+                            </router-link>
+                        </nav>
+                    </div>
                 </template>
             </div>
         </template>

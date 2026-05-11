@@ -2487,3 +2487,115 @@ body {
         max-width: calc(100vw - 2rem);
     }
 }
+
+/* Default (mobile) wrapper. .app-main must be a flex column so
+   route components that rely on `flex: 1` continue to fill it. */
+.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    position: relative;
+}
+
+@media (min-width: 900px) {
+    body {
+        padding: 0;
+    }
+
+    .app-container.is-desktop {
+        max-width: 1200px;
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .desktop-sidebar {
+        width: 340px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--bg1);
+        border-right: 1px solid #e0e0e0;
+    }
+
+    /* The chat-list component's root fills the sidebar above the nav rail. */
+    .desktop-sidebar > .chat-list-view {
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Compact nav rail pinned to the bottom of the sidebar. */
+    .desktop-sidebar .app-nav.desktop-nav {
+        flex-shrink: 0;
+        background-color: var(--bg2);
+    }
+
+    .desktop-sidebar .app-nav.desktop-nav .nav-link {
+        font-size: 0.78rem;
+        padding: 0.55rem 0.4rem;
+    }
+
+    /* Welcome placeholder shown in the main pane on /home only. */
+    .desktop-welcome {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        padding: 2rem;
+        text-align: center;
+        background-color: var(--bg2);
+    }
+
+    .desktop-welcome > svg {
+        color: var(--accent-secondary);
+        margin-bottom: 0.25rem;
+    }
+
+    .desktop-welcome h2 {
+        margin: 0;
+        color: var(--accent-primary);
+        font-weight: var(--weightSemiBold);
+    }
+
+    .desktop-welcome p {
+        margin: 0;
+        color: var(--fg-light);
+        max-width: 320px;
+    }
+
+    /* Allow message bubbles a bit more width on desktop. */
+    .app-main .message {
+        max-width: 65%;
+    }
+
+    /* Constrain profile/settings content so it doesn't stretch awkwardly
+       wide in the main pane. */
+    .app-main .profile-container,
+    .app-main .settings-container {
+        max-width: 640px;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    /* More columns for member/invite grids when there's room. */
+    .app-main .members-grid,
+    .app-main .invite-picker,
+    .app-main .page-members-select,
+    .app-main .add-from-chat-panel .page-member-picker {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+/* Extra-wide viewports get a small bump. */
+@media (min-width: 1400px) {
+    .app-container.is-desktop {
+        max-width: 1400px;
+    }
+    .desktop-sidebar {
+        width: 380px;
+    }
+}
